@@ -45,6 +45,26 @@
     </ul>
   {/if}
 
+  {#if resultat.reserve}
+    {@const r = resultat.reserve}
+    <div class="reserve" class:ko={r.alertes.length > 0}>
+      <h3>Réserve héréditaire</h3>
+      <p class="reserve-chiffres">
+        Réserve globale <strong>{r.reserveGlobale.toString()}</strong> ·
+        Quotité disponible <strong>{formatCents(r.quotiteDisponibleCents)}</strong>
+        <span class="reserve-base">sur {formatCents(r.baseCents)}</span>
+      </p>
+      {#if r.alertes.length > 0}
+        <ul class="avertissements">
+          {#each r.alertes as a}<li>⚠️ {a}</li>{/each}
+        </ul>
+      {:else}
+        <p class="reserve-ok">✓ La réserve héréditaire semble respectée.</p>
+      {/if}
+      <p class="reserve-note">Indicatif — hors représentation et libéralités antérieures.</p>
+    </div>
+  {/if}
+
   <BarreParts lignes={resultat.lignes} />
 
   <table class="parts">

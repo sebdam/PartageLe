@@ -24,6 +24,11 @@ export function toCents(euros: Fraction): bigint {
   return roundDiv(cents.n, cents.d);
 }
 
+/** Arrondit une fraction au plus proche entier (demi away-from-zero). */
+export function arrondi(f: Fraction): bigint {
+  return roundDiv(f.n, f.d);
+}
+
 /**
  * Répartit `totalCents` selon des parts (dont la somme vaut 1) avec la méthode
  * des plus forts restes : la somme des montants retombe TOUJOURS pile sur le

@@ -1,6 +1,7 @@
 import { Fraction, sum } from './fraction';
 import { toCents, splitByFractions } from './money';
-import type { Beneficiaire, Membre, Part, Partage } from './model';
+import { analyserReserve, type ReserveInfo } from './reserve';
+import type { Beneficiaire, Lien, Membre, Part, Partage } from './model';
 
 /** Une ligne du résultat (un bénéficiaire, ou le résidu non attribué). */
 export interface LigneResultat {
@@ -29,12 +30,15 @@ export interface Resultat {
   lignes: LigneResultat[];
   biens: { id: string; nom: string; valeurEntranteCents: bigint }[];
   avertissements: string[];
+  /** Analyse de la réserve héréditaire (succession), ou null. */
+  reserve: ReserveInfo | null;
 }
 
 interface Feuille {
   id: string;
   nom: string;
   fraction: Fraction;
+  lien?: Lien;
 }
 
 /** Fraction explicite d'une part, ou null si c'est « le reste ». */
@@ -52,7 +56,7 @@ function partExplicite(part: Part): Fraction | null {
 /** Développe un bénéficiaire en feuilles (personnes), les groupes étant répartis à parts égales. */
 function developper(node: Beneficiaire, fraction: Fraction, out: Feuille[]): void {
   if (node.kind === 'personne') {
-    out.push({ id: node.id, nom: node.nom || 'Sans nom', fraction });
+    out.push({ id: node.id, nom: node.nom || 'Sans nom', fraction, lien: node.lien });
     return;
   }
   developperMembres(node.membres, fraction, out);
@@ -63,7 +67,7 @@ function developperMembres(membres: Membre[], fraction: Fraction, out: Feuille[]
   if (k === 0) return; // groupe vide : sa part rejoindra le « non attribué »
   const chacun = fraction.div(Fraction.int(k));
   for (const m of membres) {
-    if (m.kind === 'personne') out.push({ id: m.id, nom: m.nom || 'Sans nom', fraction: chacun });
+    if (m.kind === 'personne') out.push({ id: m.id, nom: m.nom || 'Sans nom', fraction: chacun, lien: m.lien });
     else developperMembres(m.membres, chacun, out);
   }
 }
@@ -169,5 +173,15 @@ export function calculer(s: Partage): Resultat {
     };
   });
 
-  return { titre: s.titre, actifCents, passifCents, horsPartCents, masseCents, lignes, biens, avertissements };
+  // 7) Réserve héréditaire (succession uniquement, indicative).
+  const lienById = new Map(feuilles.map((f) => [f.id, f.lien ?? 'autre'] as const));
+  const feuillesReserve = lignes
+    .filter((l) => !l.estResidu)
+    .map((l) => {
+      const horsPartRecu = l.biensRecus.reduce((a, b) => a + (b.imputation === 'horsPart' ? b.valeurCents : 0n), 0n);
+      return { nom: l.nom, lien: lienById.get(l.id) ?? 'autre', recuCents: l.montantCents + horsPartRecu };
+    });
+  const reserve = s.contexte === 'succession' ? analyserReserve(actifCents - passifCents, horsPartCents, feuillesReserve) : null;
+
+  return { titre: s.titre, actifCents, passifCents, horsPartCents, masseCents, lignes, biens, avertissements, reserve };
 }

@@ -213,3 +213,16 @@ tr.residu { color: var(--doux); font-style: italic; }
   padding: 0.2rem 0.6rem; border-radius: 999px;
 }
 select.lien { font-size: 0.85rem; }
+
+/* Réserve héréditaire */
+.reserve {
+  border: 1px solid #bbf7d0; background: #f0fdf4;
+  border-radius: 11px; padding: 0.6rem 0.8rem; margin-bottom: 1rem;
+}
+.reserve.ko { background: var(--alerte-bg); border-color: var(--alerte-bord); }
+.reserve h3 { font-size: 0.95rem; margin-bottom: 0.25rem; }
+.reserve-chiffres { font-size: 0.85rem; margin: 0.15rem 0; }
+.reserve-base { color: var(--doux); }
+.reserve-ok { color: var(--recoit); font-weight: 600; font-size: 0.9rem; margin: 0.2rem 0; }
+.reserve-note { color: var(--doux); font-size: 0.75rem; margin-top: 0.3rem; }
+.reserve .avertissements { margin: 0.3rem 0 0; }
