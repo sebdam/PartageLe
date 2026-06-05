@@ -1,6 +1,6 @@
 import { Fraction, sum } from './fraction';
 import { toCents, splitByFractions } from './money';
-import type { Beneficiaire, Membre, Part, Succession } from './model';
+import type { Beneficiaire, Membre, Part, Partage } from './model';
 
 /** Une ligne du résultat (un bénéficiaire, ou le résidu non attribué). */
 export interface LigneResultat {
@@ -73,8 +73,8 @@ function pct(f: Fraction): string {
   return `${v.toLocaleString('fr-FR')} %`;
 }
 
-/** Cœur du moteur : transforme une succession en résultat (parts + soultes). */
-export function calculer(s: Succession): Resultat {
+/** Cœur du moteur : transforme un partage en résultat (parts + soultes). */
+export function calculer(s: Partage): Resultat {
   const avertissements: string[] = [];
 
   // 1) Biens : valeur entrante = valeur totale × quote-part du défunt, arrondie au centime.
