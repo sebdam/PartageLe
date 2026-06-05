@@ -41,6 +41,7 @@ export function lienPartage(s: Succession): string {
 
 /** Lit l'état depuis le hash de l'URL (#p=...), ou null. */
 export function lireDepuisURL(): Succession | null {
+  if (typeof location === 'undefined') return null; // pas de location en SSR/tests
   const hash = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
   const params = new URLSearchParams(hash);
   const p = params.get('p');
