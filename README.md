@@ -22,21 +22,16 @@ npm run dev        # puis ouvre http://localhost:5173
 Autres commandes : `npm test` (moteur + rendu), `npm run check` (types),
 `npm run build` (génère le dossier statique `dist/`).
 
-## Déploiement (GitHub Pages)
+## Branches & déploiement
 
-Le workflow [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml)
-vérifie (types + tests), build, puis publie l'app à chaque push sur la branche
-par défaut.
+- **`develop`** — branche par défaut, le développement courant.
+- **`main`** — production. **Livrer = fusionner une PR `develop → main`**.
 
-Mise en route, une seule fois :
+Tout push sur `main` (le merge de la PR) déclenche le workflow
+[`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) : il vérifie
+(types + tests), build, puis publie sur GitHub Pages.
 
-1. **Rendre le repo public** — Settings → General → Change repository visibility
-   *(Pages gratuit nécessite un repo public)*.
-2. **Activer Pages** — Settings → Pages → Build and deployment → **Source : GitHub Actions**.
-3. **Déclencher** — onglet **Actions** → *Deploy to GitHub Pages* → **Run workflow**
-   (ou pousse n'importe quel commit).
-
-Une fois en ligne : **https://sebdam.github.io/PartageLe/**
+En ligne : **https://sebdam.github.io/PartageLe/**
 
 ## Stack
 

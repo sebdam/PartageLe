@@ -1,10 +1,10 @@
 name: Deploy to GitHub Pages
 
-# Déclenché à chaque push sur la branche par défaut, et manuellement.
-# (Si tu renommes la branche par défaut — ex. en `main` —, mets à jour la ligne `branches`.)
+# Livraison : tout push sur `main` (typiquement le merge d'une PR develop → main)
+# vérifie (types + tests), build et déploie sur GitHub Pages. Déclenchable aussi à la main.
 on:
   push:
-    branches: ['claude/confident-mccarthy-tWkMn']
+    branches: ['main']
   workflow_dispatch:
 
 # Permissions nécessaires au déploiement Pages.
