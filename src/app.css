@@ -147,7 +147,10 @@ button:hover { background: #f8fafc; }
 
 /* Résultat */
 .resultat { background: var(--carte); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 1rem 1.1rem; }
-.resultat h2 { font-size: 1.2rem; margin-bottom: 0.75rem; }
+.resultat-tete { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+.resultat-tete h2 { margin: 0; }
+.resultat h2 { font-size: 1.2rem; }
+button[disabled] { opacity: 0.6; cursor: default; }
 .masse { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 0.75rem; }
 .masse > div { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--doux); }
 .masse .total { border-top: 1px solid var(--bord); margin-top: 0.25rem; padding-top: 0.35rem; font-size: 1.05rem; color: var(--texte); }
@@ -183,3 +186,64 @@ tr.residu { color: var(--doux); font-style: italic; }
 .recap ul { margin: 0.2rem 0; padding-left: 1.1rem; font-size: 0.9rem; }
 
 .pied { text-align: center; color: var(--doux); font-size: 0.8rem; padding: 1rem; }
+
+/* Landing */
+.landing { max-width: 760px; margin: 0 auto; padding: 3rem 1.25rem; text-align: center; }
+.landing-tete h1 { font-size: 2.4rem; color: var(--primaire-fonce); }
+.landing-tete .accroche { color: var(--doux); margin: 0.25rem 0 1.5rem; }
+.landing-sous { font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem; }
+.cartes-choix { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+@media (min-width: 620px) { .cartes-choix { grid-template-columns: 1fr 1fr; } }
+.carte-choix {
+  display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start;
+  text-align: left; padding: 1.4rem; border: 1px solid var(--bord); border-radius: var(--rayon);
+  background: var(--carte); cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.carte-choix:hover { border-color: var(--primaire); box-shadow: 0 6px 20px rgba(79, 70, 229, 0.12); transform: translateY(-2px); }
+.carte-choix .emoji { font-size: 2rem; }
+.carte-choix .nom { font-size: 1.3rem; font-weight: 700; }
+.carte-choix .desc { color: var(--doux); font-size: 0.9rem; }
+.pied-landing { color: var(--doux); font-size: 0.8rem; margin-top: 2rem; }
+
+/* Bandeau contexte */
+.retour {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--bord); background: #fff; border-radius: 9px;
+  width: 2rem; height: 2rem; padding: 0; font-size: 1.1rem; line-height: 1; color: var(--doux);
+}
+.retour:hover { background: #f8fafc; color: var(--texte); }
+.ctx-badge {
+  font-size: 0.8rem; font-weight: 600; background: #eef2ff; color: var(--primaire-fonce);
+  padding: 0.2rem 0.6rem; border-radius: 999px;
+}
+select.lien { font-size: 0.85rem; }
+
+/* Réserve héréditaire */
+.reserve {
+  border: 1px solid #bbf7d0; background: #f0fdf4;
+  border-radius: 11px; padding: 0.6rem 0.8rem; margin-bottom: 1rem;
+}
+.reserve.ko { background: var(--alerte-bg); border-color: var(--alerte-bord); }
+.reserve h3 { font-size: 0.95rem; margin-bottom: 0.25rem; }
+.reserve-chiffres { font-size: 0.85rem; margin: 0.15rem 0; }
+.reserve-base { color: var(--doux); }
+.reserve-ok { color: var(--recoit); font-weight: 600; font-size: 0.9rem; margin: 0.2rem 0; }
+.reserve-note { color: var(--doux); font-size: 0.75rem; margin-top: 0.3rem; }
+.reserve .avertissements { margin: 0.3rem 0 0; }
+
+/* Actions dupliquées en haut du formulaire */
+.actions-haut { margin-top: 0; margin-bottom: 0.75rem; justify-content: flex-end; }
+
+/* Représentation (souches) */
+.souche {
+  border: 1px solid #e9d5ff; border-left: 3px solid #a855f7;
+  background: #faf5ff; border-radius: 9px; padding: 0.5rem 0.6rem; margin: 0.4rem 0;
+}
+.souche-tete { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.souche-badge { background: #f3e8ff; color: #7e22ce; }
+.souche-aide { margin: 0.35rem 0 0.5rem; }
+.souche-add { color: #7e22ce; border-color: #e9d5ff; background: #faf5ff; }
+.souche-add:hover { background: #f3e8ff; }
+.membres-actions { margin-top: 0.3rem; }
+.membres-aide { margin-top: 0.4rem; }
+.represente { display: block; font-size: 0.72rem; color: var(--doux); font-style: italic; }

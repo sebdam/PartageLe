@@ -2,22 +2,42 @@
 import { describe, it, expect } from 'vitest';
 import { mount, unmount } from 'svelte';
 import App from './App.svelte';
+import { encoder } from './lib/urlState';
+import { successionExemple, noteExemple } from './lib/sample';
 
-// Vérifie que l'app se MONTE réellement (pas seulement qu'elle compile) et
-// affiche le résultat de l'exemple — attrape les erreurs d'exécution au montage.
+// On charge un partage via l'URL (#p=...) pour court-circuiter la landing,
+// ce qui vérifie aussi que le lien restitue le bon contexte / vocabulaire.
+function rendre(hash: string): { app: ReturnType<typeof mount>; txt: string } {
+  location.hash = hash;
+  document.body.innerHTML = '<div id="app"></div>';
+  const app = mount(App, { target: document.getElementById('app')! });
+  return { app, txt: document.body.textContent ?? '' };
+}
+
 describe('App (rendu)', () => {
-  it("se monte et affiche le résultat de l'exemple", () => {
-    document.body.innerHTML = '<div id="app"></div>';
-    const app = mount(App, { target: document.getElementById('app')! });
-    const txt = document.body.textContent ?? '';
+  it('affiche la landing quand il n’y a pas de lien', () => {
+    const { app, txt } = rendre('');
+    expect(txt).toContain('Que veux-tu partager');
+    expect(txt).toContain('Succession');
+    expect(txt).toContain('Note');
+    unmount(app);
+  });
 
-    expect(txt).toContain('Partage');
-    expect(txt).toContain('Masse à partager');
+  it('restitue une succession depuis le lien (vocabulaire succession)', () => {
+    const { app, txt } = rendre('#p=' + encoder(successionExemple()));
     expect(txt).toContain('Madame Y');
     expect(txt).toContain('Les 9 enfants');
-    // La soulte de Paul doit apparaître (il verse 4 000 €).
-    expect(txt).toContain('verse');
+    expect(txt).toContain('Masse à partager');
+    expect(txt).toContain('verse'); // Paul verse 4 000 €
+    unmount(app);
+  });
 
+  it('restitue une note depuis le lien (vocabulaire note)', () => {
+    const { app, txt } = rendre('#p=' + encoder(noteExemple()));
+    expect(txt).toContain('Alice');
+    expect(txt).toContain('Total à partager');
+    expect(txt).toContain('Remboursements');
+    expect(txt).toContain('doit'); // Bob/Chloé doivent
     unmount(app);
   });
 });

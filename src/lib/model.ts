@@ -1,12 +1,24 @@
 /**
- * Modèle de données « succession multi-actifs » (cf. CONCEPT.md).
+ * Modèle de données du partage (cf. CONCEPT.md).
  *
- * Le « tout » n'est pas un nombre mais un calcul : des biens (avec la quote-part
- * du défunt), un passif, des bénéficiaires (personnes et groupes), et des
- * attributions spécifiques de biens.
+ * Le « tout » n'est pas un nombre mais un calcul : des biens (avec une éventuelle
+ * quote-part), un passif, des bénéficiaires (personnes et groupes), et des
+ * attributions spécifiques de biens. Le même modèle sert plusieurs contextes
+ * (succession, note de la vie courante…) — cf. contexte.ts.
  */
 
+import type { Contexte } from './contexte';
+
 export type Id = string;
+
+/** Lien avec le défunt (succession) — sert au calcul de la réserve héréditaire. */
+export type Lien = 'enfant' | 'conjoint' | 'autre';
+
+export const LIENS = [
+  { value: 'enfant', label: 'Enfant' },
+  { value: 'conjoint', label: 'Conjoint' },
+  { value: 'autre', label: 'Autre' },
+] as const;
 
 export const CATEGORIES = [
   { value: 'immobilier', label: 'Immobilier' },
@@ -19,14 +31,14 @@ export const CATEGORIES = [
 
 export type Categorie = (typeof CATEGORIES)[number]['value'];
 
-/** Un bien de la succession. Seule la quote-part du défunt entre dans la masse. */
+/** Un bien / article. En succession, seule la quote-part du défunt entre dans la masse. */
 export interface Bien {
   id: Id;
   nom: string;
   categorie: Categorie;
-  /** Valeur totale du bien, saisie en euros (chaîne décimale). */
+  /** Valeur totale (ou prix), saisie en euros (chaîne décimale). */
   valeurEuros: string;
-  /** Part possédée par le défunt (ex. 1/2 pour « la moitié d'une maison »). */
+  /** Part possédée par le défunt (ex. 1/2). En contexte « note », vaut 1/1. */
   quotePart: { n: number; d: number };
 }
 
@@ -45,12 +57,12 @@ export type Part =
 
 /** Membre d'un groupe : une personne (feuille) ou un sous-groupe (représentation). */
 export type Membre =
-  | { kind: 'personne'; id: Id; nom: string }
+  | { kind: 'personne'; id: Id; nom: string; lien?: Lien }
   | { kind: 'sousGroupe'; id: Id; nom: string; membres: Membre[] };
 
 /** Bénéficiaire de premier rang : une personne, ou un groupe réparti à parts égales. */
 export type Beneficiaire =
-  | { kind: 'personne'; id: Id; nom: string; part: Part }
+  | { kind: 'personne'; id: Id; nom: string; part: Part; lien?: Lien }
   | { kind: 'groupe'; id: Id; nom: string; part: Part; membres: Membre[] };
 
 /** Attribution d'un bien à un bénéficiaire (feuille), avant le partage du reste. */
@@ -62,7 +74,8 @@ export interface Attribution {
   imputation: 'surPart' | 'horsPart';
 }
 
-export interface Succession {
+export interface Partage {
+  contexte: Contexte;
   titre: string;
   devise: 'EUR';
   biens: Bien[];
@@ -80,7 +93,7 @@ export function uid(prefix = 'id'): Id {
 }
 
 export function nouveauBien(): Bien {
-  return { id: uid('bien'), nom: '', categorie: 'immobilier', valeurEuros: '', quotePart: { n: 1, d: 1 } };
+  return { id: uid('bien'), nom: '', categorie: 'autre', valeurEuros: '', quotePart: { n: 1, d: 1 } };
 }
 
 export function nouveauPassif(): Passif {
@@ -88,7 +101,7 @@ export function nouveauPassif(): Passif {
 }
 
 export function nouvellePersonne(nom = '', part: Part = { type: 'reste' }): Beneficiaire {
-  return { kind: 'personne', id: uid('pers'), nom, part };
+  return { kind: 'personne', id: uid('pers'), nom, part, lien: 'autre' };
 }
 
 export function nouveauGroupe(nom = '', part: Part = { type: 'reste' }): Beneficiaire {
@@ -96,15 +109,19 @@ export function nouveauGroupe(nom = '', part: Part = { type: 'reste' }): Benefic
 }
 
 export function nouveauMembrePersonne(nom = ''): Membre {
-  return { kind: 'personne', id: uid('m'), nom };
+  return { kind: 'personne', id: uid('m'), nom, lien: 'autre' };
 }
 
 export function nouveauSousGroupe(nom = ''): Membre {
   return { kind: 'sousGroupe', id: uid('sg'), nom, membres: [] };
 }
 
+export function partageVide(contexte: Contexte): Partage {
+  return { contexte, titre: '', devise: 'EUR', biens: [], passif: [], beneficiaires: [], attributions: [] };
+}
+
 /** Liste à plat des personnes (feuilles) avec un libellé, pour les attributions. */
-export function listerPersonnes(s: Succession): { id: Id; nom: string }[] {
+export function listerPersonnes(s: Partage): { id: Id; nom: string }[] {
   const out: { id: Id; nom: string }[] = [];
   const visitMembre = (m: Membre, prefix: string) => {
     if (m.kind === 'personne') out.push({ id: m.id, nom: prefix + (m.nom || 'Sans nom') });

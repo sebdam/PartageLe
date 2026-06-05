@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculer } from './compute';
-import { successionExemple } from './sample';
-import type { Succession } from './model';
+import { successionExemple, noteExemple } from './sample';
+import type { Partage } from './model';
 
 function ligne(res: ReturnType<typeof calculer>, id: string) {
   const l = res.lignes.find((x) => x.id === id);
@@ -46,7 +46,8 @@ describe('calculer — exemple de la maison', () => {
 });
 
 describe('calculer — représentation (sous-groupe)', () => {
-  const s: Succession = {
+  const s: Partage = {
+    contexte: 'succession',
     titre: 'Test',
     devise: 'EUR',
     biens: [{ id: 'b', nom: 'Bien', categorie: 'autre', valeurEuros: '24000', quotePart: { n: 1, d: 1 } }],
@@ -76,12 +77,15 @@ describe('calculer — représentation (sous-groupe)', () => {
     expect(ligne(res, 'A').montantCents).toBe(1200000n);
     expect(ligne(res, 'B').montantCents).toBe(600000n);
     expect(ligne(res, 'C').montantCents).toBe(600000n);
+    expect(ligne(res, 'B').representeDe).toBe('Souche'); // B représente la souche
+    expect(ligne(res, 'A').representeDe).toBeUndefined();
   });
 });
 
 describe('calculer — garde-fous', () => {
   it('signale un reste non attribué', () => {
-    const s: Succession = {
+    const s: Partage = {
+      contexte: 'succession',
       titre: 'T', devise: 'EUR',
       biens: [{ id: 'b', nom: 'B', categorie: 'autre', valeurEuros: '1000', quotePart: { n: 1, d: 1 } }],
       passif: [],
@@ -94,7 +98,8 @@ describe('calculer — garde-fous', () => {
   });
 
   it('signale un dépassement de 100 %', () => {
-    const s: Succession = {
+    const s: Partage = {
+      contexte: 'succession',
       titre: 'T', devise: 'EUR',
       biens: [{ id: 'b', nom: 'B', categorie: 'autre', valeurEuros: '1000', quotePart: { n: 1, d: 1 } }],
       passif: [],
@@ -106,5 +111,23 @@ describe('calculer — garde-fous', () => {
     };
     const res = calculer(s);
     expect(res.avertissements.join(' ')).toContain('Dépassement');
+  });
+});
+
+describe('calculer — note de resto (qui a payé)', () => {
+  const res = calculer(noteExemple());
+
+  it('chaque participant doit 22 € (total 66 / 3)', () => {
+    expect(res.masseCents).toBe(6600n);
+    expect(ligne(res, 'pa_alice').montantCents).toBe(2200n);
+  });
+
+  it('le solde reflète qui a payé et la note s’équilibre', () => {
+    // soulte = payé − part : Alice a payé 54 ⇒ +32 ; Bob 12 ⇒ −10 ; Chloé 0 ⇒ −22.
+    expect(ligne(res, 'pa_alice').soulteCents).toBe(3200n);
+    expect(ligne(res, 'pa_bob').soulteCents).toBe(-1000n);
+    expect(ligne(res, 'pa_chloe').soulteCents).toBe(-2200n);
+    const somme = res.lignes.reduce((a, l) => a + l.soulteCents, 0n);
+    expect(somme).toBe(0n);
   });
 });
