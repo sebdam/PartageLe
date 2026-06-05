@@ -2,9 +2,20 @@
   import type { Resultat } from '../lib/compute';
   import type { Vocabulaire } from '../lib/contexte';
   import { formatCents } from '../lib/money';
+  import { exporterPdf } from '../lib/pdf';
   import BarreParts from './BarreParts.svelte';
 
   let { resultat, vocab }: { resultat: Resultat; vocab: Vocabulaire } = $props();
+
+  let pdfEnCours = $state(false);
+  async function exporter() {
+    pdfEnCours = true;
+    try {
+      await exporterPdf(resultat, vocab);
+    } finally {
+      pdfEnCours = false;
+    }
+  }
 
   // Solde normalisé : > 0 ⇒ la personne décaisse (verse / doit) ; < 0 ⇒ elle reçoit.
   // En succession, soulte = reçu − part ; en note, on inverse (reçu = « a payé »).
@@ -26,7 +37,10 @@
 </script>
 
 <div class="resultat">
-  <h2>Résultat</h2>
+  <div class="resultat-tete">
+    <h2>Résultat</h2>
+    <button class="add petit" onclick={exporter} disabled={pdfEnCours}>{pdfEnCours ? 'Génération…' : '📄 Exporter en PDF'}</button>
+  </div>
 
   <div class="masse">
     <div><span>{vocab.labelActif}</span><strong>{formatCents(resultat.actifCents)}</strong></div>

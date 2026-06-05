@@ -147,7 +147,10 @@ button:hover { background: #f8fafc; }
 
 /* Résultat */
 .resultat { background: var(--carte); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 1rem 1.1rem; }
-.resultat h2 { font-size: 1.2rem; margin-bottom: 0.75rem; }
+.resultat-tete { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+.resultat-tete h2 { margin: 0; }
+.resultat h2 { font-size: 1.2rem; }
+button[disabled] { opacity: 0.6; cursor: default; }
 .masse { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 0.75rem; }
 .masse > div { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--doux); }
 .masse .total { border-top: 1px solid var(--bord); margin-top: 0.25rem; padding-top: 0.35rem; font-size: 1.05rem; color: var(--texte); }
