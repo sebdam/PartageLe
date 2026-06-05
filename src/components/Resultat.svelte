@@ -75,7 +75,7 @@
       {:else}
         <p class="reserve-ok">✓ La réserve héréditaire semble respectée.</p>
       {/if}
-      <p class="reserve-note">Indicatif — hors représentation et libéralités antérieures.</p>
+      <p class="reserve-note">Indicatif — une souche compte pour un enfant ; hors libéralités antérieures (rapport).</p>
     </div>
   {/if}
 

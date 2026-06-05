@@ -1,6 +1,6 @@
 import { Fraction, sum } from './fraction';
 import { toCents, splitByFractions } from './money';
-import { analyserReserve, type ReserveInfo } from './reserve';
+import { analyserReserve, type ReserveInfo, type ReserveSlots } from './reserve';
 import type { Beneficiaire, Lien, Membre, Part, Partage } from './model';
 
 /** Une ligne du résultat (un bénéficiaire, ou le résidu non attribué). */
@@ -79,6 +79,43 @@ function developperMembres(membres: Membre[], fraction: Fraction, out: Feuille[]
 function pct(f: Fraction): string {
   const v = Math.round(f.toNumber() * 10000) / 100;
   return `${v.toLocaleString('fr-FR')} %`;
+}
+
+/**
+ * Construit les « slots » réservataires : un enfant, ou une souche (qui représente
+ * un enfant prédécédé) compte pour UN seul enfant, sa réserve étant appréciée
+ * collectivement (somme reçue par ses membres).
+ */
+function construireSlots(beneficiaires: Beneficiaire[], recuById: Map<string, bigint>): ReserveSlots {
+  const enfants: { nom: string; recuCents: bigint }[] = [];
+  let conjointRecuCents: bigint | null = null;
+
+  const recu = (id: string) => recuById.get(id) ?? 0n;
+  const contientEnfant = (m: Membre): boolean =>
+    m.kind === 'personne' ? m.lien === 'enfant' : m.membres.some(contientEnfant);
+  const sommeRecu = (m: Membre): bigint =>
+    m.kind === 'personne' ? recu(m.id) : m.membres.reduce((a, x) => a + sommeRecu(x), 0n);
+
+  const visiterMembre = (m: Membre) => {
+    if (m.kind === 'personne') {
+      if (m.lien === 'enfant') enfants.push({ nom: m.nom || 'Enfant', recuCents: recu(m.id) });
+      else if (m.lien === 'conjoint') conjointRecuCents = (conjointRecuCents ?? 0n) + recu(m.id);
+    } else if (contientEnfant(m)) {
+      enfants.push({ nom: m.nom || 'Souche', recuCents: sommeRecu(m) }); // souche = un seul enfant réservataire
+    } else {
+      m.membres.forEach(visiterMembre);
+    }
+  };
+
+  for (const b of beneficiaires) {
+    if (b.kind === 'personne') {
+      if (b.lien === 'enfant') enfants.push({ nom: b.nom || 'Enfant', recuCents: recu(b.id) });
+      else if (b.lien === 'conjoint') conjointRecuCents = (conjointRecuCents ?? 0n) + recu(b.id);
+    } else {
+      b.membres.forEach(visiterMembre);
+    }
+  }
+  return { enfants, conjointRecuCents };
 }
 
 /** Cœur du moteur : transforme un partage en résultat (parts + soultes). */
@@ -179,14 +216,16 @@ export function calculer(s: Partage): Resultat {
   });
 
   // 7) Réserve héréditaire (succession uniquement, indicative).
-  const lienById = new Map(feuilles.map((f) => [f.id, f.lien ?? 'autre'] as const));
-  const feuillesReserve = lignes
-    .filter((l) => !l.estResidu)
-    .map((l) => {
-      const horsPartRecu = l.biensRecus.reduce((a, b) => a + (b.imputation === 'horsPart' ? b.valeurCents : 0n), 0n);
-      return { nom: l.nom, lien: lienById.get(l.id) ?? 'autre', recuCents: l.montantCents + horsPartRecu };
-    });
-  const reserve = s.contexte === 'succession' ? analyserReserve(actifCents - passifCents, horsPartCents, feuillesReserve) : null;
+  const recuById = new Map<string, bigint>();
+  for (const l of lignes) {
+    if (l.estResidu) continue;
+    const horsPartRecu = l.biensRecus.reduce((a, b) => a + (b.imputation === 'horsPart' ? b.valeurCents : 0n), 0n);
+    recuById.set(l.id, l.montantCents + horsPartRecu);
+  }
+  const reserve =
+    s.contexte === 'succession'
+      ? analyserReserve(actifCents - passifCents, horsPartCents, construireSlots(s.beneficiaires, recuById))
+      : null;
 
   return { titre: s.titre, actifCents, passifCents, horsPartCents, masseCents, lignes, biens, avertissements, reserve };
 }
