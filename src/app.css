@@ -207,6 +207,7 @@ tr.residu { color: var(--doux); font-style: italic; }
 
 /* Bandeau contexte */
 .retour {
+  display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--bord); background: #fff; border-radius: 9px;
   width: 2rem; height: 2rem; padding: 0; font-size: 1.1rem; line-height: 1; color: var(--doux);
 }
@@ -229,3 +230,20 @@ select.lien { font-size: 0.85rem; }
 .reserve-ok { color: var(--recoit); font-weight: 600; font-size: 0.9rem; margin: 0.2rem 0; }
 .reserve-note { color: var(--doux); font-size: 0.75rem; margin-top: 0.3rem; }
 .reserve .avertissements { margin: 0.3rem 0 0; }
+
+/* Actions dupliquées en haut du formulaire */
+.actions-haut { margin-top: 0; margin-bottom: 0.75rem; justify-content: flex-end; }
+
+/* Représentation (souches) */
+.souche {
+  border: 1px solid #e9d5ff; border-left: 3px solid #a855f7;
+  background: #faf5ff; border-radius: 9px; padding: 0.5rem 0.6rem; margin: 0.4rem 0;
+}
+.souche-tete { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.souche-badge { background: #f3e8ff; color: #7e22ce; }
+.souche-aide { margin: 0.35rem 0 0.5rem; }
+.souche-add { color: #7e22ce; border-color: #e9d5ff; background: #faf5ff; }
+.souche-add:hover { background: #f3e8ff; }
+.membres-actions { margin-top: 0.3rem; }
+.membres-aide { margin-top: 0.4rem; }
+.represente { display: block; font-size: 0.72rem; color: var(--doux); font-style: italic; }

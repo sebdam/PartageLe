@@ -18,6 +18,8 @@ export interface LigneResultat {
   biensRecus: { nom: string; valeurCents: bigint; imputation: 'surPart' | 'horsPart' }[];
   /** Soulte en centimes : > 0 ⇒ la personne verse, < 0 ⇒ elle reçoit. */
   soulteCents: bigint;
+  /** Si la personne vient par représentation : « qui » elle représente (chaîne de souches). */
+  representeDe?: string;
 }
 
 export interface Resultat {
@@ -39,6 +41,8 @@ interface Feuille {
   nom: string;
   fraction: Fraction;
   lien?: Lien;
+  /** Chaîne des souches (sous-groupes) dont la personne descend, du haut vers le bas. */
+  souches?: string[];
 }
 
 /** Fraction explicite d'une part, ou null si c'est « le reste ». */
@@ -59,16 +63,16 @@ function developper(node: Beneficiaire, fraction: Fraction, out: Feuille[]): voi
     out.push({ id: node.id, nom: node.nom || 'Sans nom', fraction, lien: node.lien });
     return;
   }
-  developperMembres(node.membres, fraction, out);
+  developperMembres(node.membres, fraction, out, []);
 }
 
-function developperMembres(membres: Membre[], fraction: Fraction, out: Feuille[]): void {
+function developperMembres(membres: Membre[], fraction: Fraction, out: Feuille[], souches: string[]): void {
   const k = membres.length;
   if (k === 0) return; // groupe vide : sa part rejoindra le « non attribué »
   const chacun = fraction.div(Fraction.int(k));
   for (const m of membres) {
-    if (m.kind === 'personne') out.push({ id: m.id, nom: m.nom || 'Sans nom', fraction: chacun, lien: m.lien });
-    else developperMembres(m.membres, chacun, out);
+    if (m.kind === 'personne') out.push({ id: m.id, nom: m.nom || 'Sans nom', fraction: chacun, lien: m.lien, souches });
+    else developperMembres(m.membres, chacun, out, [...souches, m.nom || 'Souche']);
   }
 }
 
@@ -170,6 +174,7 @@ export function calculer(s: Partage): Resultat {
       biensRecus: biensRecus.get(f.id) ?? [],
       // Soulte = ce qu'on a reçu en nature (sur part) − sa part théorique.
       soulteCents: estResidu ? 0n : surPart - montant,
+      representeDe: f.souches && f.souches.length > 0 ? f.souches.join(' › ') : undefined,
     };
   });
 

@@ -64,6 +64,11 @@
 
   <div class="grille">
     <main class="formulaire">
+      <div class="actions actions-haut">
+        <button onclick={chargerExemple}>Charger l'exemple</button>
+        <button onclick={vider}>Vider</button>
+      </div>
+
       <section class="carte">
         <input class="titre" bind:value={partage.titre} placeholder={vocab.titrePlaceholder} />
       </section>

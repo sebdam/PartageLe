@@ -90,6 +90,7 @@
         <tr class:residu={l.estResidu}>
           <td>
             <span class="nom">{l.nom}</span>
+            {#if l.representeDe}<span class="represente">représente {l.representeDe}</span>{/if}
             {#if l.biensRecus.length > 0}
               <span class="biens">
                 {#each l.biensRecus as b}

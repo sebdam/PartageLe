@@ -77,6 +77,8 @@ describe('calculer — représentation (sous-groupe)', () => {
     expect(ligne(res, 'A').montantCents).toBe(1200000n);
     expect(ligne(res, 'B').montantCents).toBe(600000n);
     expect(ligne(res, 'C').montantCents).toBe(600000n);
+    expect(ligne(res, 'B').representeDe).toBe('Souche'); // B représente la souche
+    expect(ligne(res, 'A').representeDe).toBeUndefined();
   });
 });
 

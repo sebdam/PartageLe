@@ -63,11 +63,23 @@ export async function construirePdf(resultat: Resultat, vocab: Vocabulaire): Pro
   doc.text(resumeLines, 14, y);
   y += 5 * resumeLines.length + 2;
 
+  // Ce qui est partagé (biens / articles).
+  autoTable(doc, {
+    startY: y,
+    head: [[vocab.id === 'note' ? 'Article' : 'Bien', 'Valeur']],
+    body: resultat.biens.map((b) => [b.nom, euros(b.valeurEntranteCents)]),
+    styles: { fontSize: 9, cellPadding: 2 },
+    headStyles: { fillColor: [100, 116, 139] },
+    columnStyles: { 1: { halign: 'right' } },
+  });
+  y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 8;
+
+  // Répartition.
   autoTable(doc, {
     startY: y,
     head: [[vocab.labelBeneficiaire, 'Part', 'Montant', vocab.labelSoulte]],
     body: resultat.lignes.map((l) => [
-      l.nom,
+      l.representeDe ? `${l.nom}\n(représente ${l.representeDe})` : l.nom,
       `${l.fraction.toString()}  (${pct(l.pourcent)})`,
       euros(l.montantCents),
       l.estResidu ? '' : soldeTexte(l.soulteCents, vocab),
