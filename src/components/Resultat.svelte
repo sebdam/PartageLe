@@ -73,6 +73,7 @@
         · réserve individuelle <strong>{formatCents(r.seuilCents)}</strong>
       </p>
       {#if r.reservataires.length > 0}
+        <div class="table-scroll">
         <table class="reserve-table">
           <thead><tr><th>Réservataire</th><th class="r">Reçu</th><th class="r">Seuil</th><th class="r">Marge</th></tr></thead>
           <tbody>
@@ -86,6 +87,7 @@
             {/each}
           </tbody>
         </table>
+        </div>
       {/if}
       {#if r.alertes.length > 0}
         <ul class="avertissements">
@@ -100,6 +102,7 @@
 
   <BarreParts lignes={resultat.lignes} />
 
+  <div class="table-scroll">
   <table class="parts">
     <thead>
       <tr><th>{vocab.labelBeneficiaire}</th><th>Part</th><th class="r">Montant</th><th class="r">{vocab.labelSoulte}</th></tr>
@@ -127,6 +130,7 @@
       {/each}
     </tbody>
   </table>
+  </div>
 
   {#if lignesPaient.length > 0}
     <div class="recap">

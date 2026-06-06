@@ -253,3 +253,34 @@ select.lien { font-size: 0.85rem; }
 .membres-actions { margin-top: 0.3rem; }
 .membres-aide { margin-top: 0.4rem; }
 .represente { display: block; font-size: 0.72rem; color: var(--doux); font-style: italic; }
+
+/* Tableaux défilables horizontalement si trop larges (mobile) */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* --- Mobile --- */
+@media (max-width: 600px) {
+  h1 { font-size: 1.6rem; }
+  .entete { padding: 1.1rem 0.9rem 0.4rem; }
+  .grille { padding: 0.75rem 0.9rem 2rem; gap: 1rem; }
+  .carte { padding: 0.85rem; }
+  .resultat-tete { flex-wrap: wrap; }
+
+  /* Les lignes passent à la ligne au lieu de déborder */
+  .ligne { flex-wrap: wrap; }
+  .champ { flex: 1 1 100%; }
+  .avec-unite { width: 100%; }
+  .avec-unite input { flex: 1 1 auto; width: auto; }
+  .num { width: 100%; }
+  .entrante { margin-left: 0; }
+
+  /* Cibles tactiles plus confortables */
+  input, select { padding: 0.55rem 0.6rem; }
+  button { padding: 0.55rem 0.85rem; }
+  .add.petit { padding: 0.45rem 0.65rem; }
+  .del { font-size: 1.45rem; padding: 0.2rem 0.5rem; }
+
+  /* Tableaux compacts */
+  table.parts, .reserve-table { font-size: 0.82rem; }
+  table.parts td, table.parts th { padding: 0.4rem 0.3rem; }
+  .landing-tete h1 { font-size: 2rem; }
+}
