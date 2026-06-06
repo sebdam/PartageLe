@@ -1,6 +1,7 @@
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { Resultat } from './compute';
 import type { Vocabulaire } from './contexte';
+import { calculerReglements } from './reglements';
 
 /**
  * Export PDF du résultat. jsPDF + autotable sont importés DYNAMIQUEMENT :
@@ -130,6 +131,26 @@ export async function construirePdf(resultat: Resultat, vocab: Vocabulaire): Pro
       }
     }
     doc.setTextColor(20);
+  }
+
+  if (vocab.id === 'note') {
+    const reglements = calculerReglements(
+      resultat.lignes.filter((l) => !l.estResidu).map((l) => ({ nom: l.nom, soldeCents: -l.soulteCents })),
+    );
+    if (reglements.length > 0) {
+      doc.setFontSize(12);
+      doc.text('Remboursements', 14, y);
+      y += 3;
+      autoTable(doc, {
+        startY: y,
+        head: [['Qui', 'Doit', 'À qui']],
+        body: reglements.map((r) => [r.deNom, euros(r.montantCents), r.versNom]),
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [79, 70, 229] },
+        columnStyles: { 1: { halign: 'right' } },
+      });
+      y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 6;
+    }
   }
 
   doc.setFontSize(8);

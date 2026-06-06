@@ -3,6 +3,7 @@
   import type { Vocabulaire } from '../lib/contexte';
   import { formatCents } from '../lib/money';
   import { exporterPdf } from '../lib/pdf';
+  import { calculerReglements } from '../lib/reglements';
   import BarreParts from './BarreParts.svelte';
 
   let { resultat, vocab }: { resultat: Resultat; vocab: Vocabulaire } = $props();
@@ -24,6 +25,13 @@
   }
 
   const lignesPaient = $derived(resultat.lignes.filter((l) => !l.estResidu && aRegler(l.soulteCents) > 0n));
+
+  // Mode note : plan « qui rembourse qui » (transferts minimisés).
+  const reglements = $derived(
+    vocab.id === 'note'
+      ? calculerReglements(resultat.lignes.filter((l) => !l.estResidu).map((l) => ({ nom: l.nom, soldeCents: -l.soulteCents })))
+      : [],
+  );
 
   function formatPct(v: number): string {
     return `${(Math.round(v * 100) / 100).toLocaleString('fr-FR')} %`;
@@ -132,7 +140,17 @@
   </table>
   </div>
 
-  {#if lignesPaient.length > 0}
+  {#if vocab.id === 'note'}
+    {#if reglements.length > 0}
+      <div class="recap">
+        <h3>{vocab.recapTitre}</h3>
+        <ul>
+          {#each reglements as r}<li><strong>{r.deNom}</strong> {vocab.verbePaie} {formatCents(r.montantCents)} à <strong>{r.versNom}</strong></li>{/each}
+        </ul>
+        <p class="aide">{reglements.length} transfert{reglements.length > 1 ? 's' : ''} pour équilibrer la note.</p>
+      </div>
+    {/if}
+  {:else if lignesPaient.length > 0}
     <div class="recap">
       <h3>{vocab.recapTitre}</h3>
       <ul>
