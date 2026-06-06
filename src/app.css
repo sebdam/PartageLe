@@ -81,6 +81,7 @@ input, select {
   background: #fff;
   color: var(--texte);
   min-width: 0;
+  max-width: 100%;
 }
 input:focus, select:focus { outline: 2px solid var(--primaire); outline-offset: 1px; border-color: var(--primaire); }
 .titre { width: 100%; font-size: 1.15rem; font-weight: 600; }
@@ -283,4 +284,10 @@ select.lien { font-size: 0.85rem; }
   table.parts, .reserve-table { font-size: 0.82rem; }
   table.parts td, table.parts th { padding: 0.4rem 0.3rem; }
   .landing-tete h1 { font-size: 2rem; }
+
+  /* Anti-débordement horizontal */
+  body { overflow-x: hidden; }
+  .ligne.wrap > select { flex: 1 1 100%; }       /* attributions : menus empilés, jamais trop larges */
+  .grow { flex-basis: 100%; }                    /* le champ "nom" prend sa propre ligne */
+  .nom, .chip, table.parts td, .represente { overflow-wrap: anywhere; }
 }
