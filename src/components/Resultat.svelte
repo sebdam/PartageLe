@@ -68,6 +68,27 @@
         Quotité disponible <strong>{formatCents(r.quotiteDisponibleCents)}</strong>
         <span class="reserve-base">sur {formatCents(r.baseCents)}</span>
       </p>
+      <p class="reserve-detail-tete">
+        {r.nbEnfants > 0 ? `${r.nbEnfants} réservataire${r.nbEnfants > 1 ? 's' : ''}` : 'Conjoint réservataire'}
+        · réserve individuelle <strong>{formatCents(r.seuilCents)}</strong>
+      </p>
+      {#if r.reservataires.length > 0}
+        <div class="table-scroll">
+        <table class="reserve-table">
+          <thead><tr><th>Réservataire</th><th class="r">Reçu</th><th class="r">Seuil</th><th class="r">Marge</th></tr></thead>
+          <tbody>
+            {#each r.reservataires as res}
+              <tr>
+                <td>{res.nom}</td>
+                <td class="r">{formatCents(res.recuCents)}</td>
+                <td class="r">{formatCents(res.seuilCents)}</td>
+                <td class="r" class:negatif={res.margeCents < 0n}>{res.margeCents > 0n ? '+' : ''}{formatCents(res.margeCents)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        </div>
+      {/if}
       {#if r.alertes.length > 0}
         <ul class="avertissements">
           {#each r.alertes as a}<li>⚠️ {a}</li>{/each}
@@ -81,6 +102,7 @@
 
   <BarreParts lignes={resultat.lignes} />
 
+  <div class="table-scroll">
   <table class="parts">
     <thead>
       <tr><th>{vocab.labelBeneficiaire}</th><th>Part</th><th class="r">Montant</th><th class="r">{vocab.labelSoulte}</th></tr>
@@ -108,6 +130,7 @@
       {/each}
     </tbody>
   </table>
+  </div>
 
   {#if lignesPaient.length > 0}
     <div class="recap">

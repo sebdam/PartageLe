@@ -52,10 +52,10 @@ h1 { font-size: 2rem; letter-spacing: -0.02em; color: var(--primaire-fonce); }
   padding: 1rem 1.25rem 2rem;
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 @media (min-width: 920px) {
-  .grille { grid-template-columns: 1.1fr 0.9fr; align-items: start; }
+  .grille { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); align-items: start; }
   .apercu { position: sticky; top: 1rem; }
 }
 
@@ -81,6 +81,7 @@ input, select {
   background: #fff;
   color: var(--texte);
   min-width: 0;
+  max-width: 100%;
 }
 input:focus, select:focus { outline: 2px solid var(--primaire); outline-offset: 1px; border-color: var(--primaire); }
 .titre { width: 100%; font-size: 1.15rem; font-weight: 600; }
@@ -230,6 +231,12 @@ select.lien { font-size: 0.85rem; }
 .reserve-ok { color: var(--recoit); font-weight: 600; font-size: 0.9rem; margin: 0.2rem 0; }
 .reserve-note { color: var(--doux); font-size: 0.75rem; margin-top: 0.3rem; }
 .reserve .avertissements { margin: 0.3rem 0 0; }
+.reserve-detail-tete { font-size: 0.78rem; color: var(--doux); margin: 0.1rem 0 0.4rem; }
+.reserve-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 0.4rem; }
+.reserve-table th { text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--doux); padding: 0.2rem 0.3rem; }
+.reserve-table td { padding: 0.2rem 0.3rem; border-top: 1px solid rgba(15, 23, 42, 0.08); }
+.reserve-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+.reserve-table .negatif { color: #dc2626; font-weight: 600; }
 
 /* Actions dupliquées en haut du formulaire */
 .actions-haut { margin-top: 0; margin-bottom: 0.75rem; justify-content: flex-end; }
@@ -247,3 +254,40 @@ select.lien { font-size: 0.85rem; }
 .membres-actions { margin-top: 0.3rem; }
 .membres-aide { margin-top: 0.4rem; }
 .represente { display: block; font-size: 0.72rem; color: var(--doux); font-style: italic; }
+
+/* Tableaux défilables horizontalement si trop larges (mobile) */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* --- Mobile --- */
+@media (max-width: 600px) {
+  h1 { font-size: 1.6rem; }
+  .entete { padding: 1.1rem 0.9rem 0.4rem; }
+  .grille { padding: 0.75rem 0.9rem 2rem; gap: 1rem; }
+  .carte { padding: 0.85rem; }
+  .resultat-tete { flex-wrap: wrap; }
+
+  /* Les lignes passent à la ligne au lieu de déborder */
+  .ligne { flex-wrap: wrap; }
+  .champ { flex: 1 1 100%; }
+  .avec-unite { width: 100%; }
+  .avec-unite input { flex: 1 1 auto; width: auto; }
+  .num { width: 100%; }
+  .entrante { margin-left: 0; }
+
+  /* Cibles tactiles plus confortables */
+  input, select { padding: 0.55rem 0.6rem; }
+  button { padding: 0.55rem 0.85rem; }
+  .add.petit { padding: 0.45rem 0.65rem; }
+  .del { font-size: 1.45rem; padding: 0.2rem 0.5rem; }
+
+  /* Tableaux compacts */
+  table.parts, .reserve-table { font-size: 0.82rem; }
+  table.parts td, table.parts th { padding: 0.4rem 0.3rem; }
+  .landing-tete h1 { font-size: 2rem; }
+
+  /* Anti-débordement horizontal */
+  body { overflow-x: hidden; }
+  .ligne.wrap > select { flex: 1 1 100%; }       /* attributions : menus empilés, jamais trop larges */
+  .grow { flex-basis: 100%; }                    /* le champ "nom" prend sa propre ligne */
+  .nom, .chip, table.parts td, .represente { overflow-wrap: anywhere; }
+}

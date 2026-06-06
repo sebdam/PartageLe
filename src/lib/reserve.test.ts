@@ -72,3 +72,19 @@ describe('réserve via le moteur', () => {
     expect(res.reserve!.alertes).toHaveLength(0); // Paul 180k & souche 180k ≥ seuil 120k
   });
 });
+
+describe('détail réservataires', () => {
+  it('expose reçu, seuil et marge par réservataire', () => {
+    const r = analyserReserve(36000000n, 0n, slots([18000000n, 18000000n]))!;
+    expect(r.seuilCents).toBe(12000000n); // (2/3 × 36M) / 2
+    expect(r.reservataires).toHaveLength(2);
+    expect(r.reservataires[0].recuCents).toBe(18000000n);
+    expect(r.reservataires[0].margeCents).toBe(6000000n); // +60 000 €
+  });
+
+  it('marge négative pour un réservataire lésé', () => {
+    const r = analyserReserve(24000000n, 0n, slots([3000000n, 21000000n]))!;
+    expect(r.reservataires[0].margeCents).toBeLessThan(0n);
+    expect(r.reservataires[1].margeCents).toBeGreaterThan(0n);
+  });
+});
