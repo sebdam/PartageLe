@@ -24,7 +24,7 @@ describe('App (rendu)', () => {
   });
 
   it('restitue une succession depuis le lien (vocabulaire succession)', () => {
-    const { app, txt } = rendre('#p=' + encoder(successionExemple()));
+    const { app, txt } = rendre('#z=' + encoder(successionExemple()));
     expect(txt).toContain('Madame Y');
     expect(txt).toContain('Les 9 enfants');
     expect(txt).toContain('Masse à partager');
@@ -33,7 +33,7 @@ describe('App (rendu)', () => {
   });
 
   it('restitue une note depuis le lien (vocabulaire note)', () => {
-    const { app, txt } = rendre('#p=' + encoder(noteExemple()));
+    const { app, txt } = rendre('#z=' + encoder(noteExemple()));
     expect(txt).toContain('Alice');
     expect(txt).toContain('Total à partager');
     expect(txt).toContain('Remboursements');
