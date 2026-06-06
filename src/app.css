@@ -87,6 +87,8 @@ input:focus, select:focus { outline: 2px solid var(--primaire); outline-offset: 
 .titre { width: 100%; font-size: 1.15rem; font-weight: 600; }
 
 .liste { display: flex; flex-direction: column; gap: 0.6rem; }
+/* Espace entre une liste et le bouton d'ajout (ou la rangée de boutons) qui la suit */
+.liste + .add, .liste + .ligne, .liste + .aide { margin-top: 0.75rem; }
 .ligne { display: flex; gap: 0.5rem; align-items: center; flex-wrap: nowrap; }
 .ligne.wrap { flex-wrap: wrap; }
 .grow { flex: 1 1 auto; }
