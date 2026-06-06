@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.8"
+    "jspdf-autotable": "^5.0.8",
+    "lz-string": "^1.5.0"
   }
 }
