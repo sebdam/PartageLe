@@ -86,6 +86,26 @@ function pct(f: Fraction): string {
 }
 
 /**
+ * Pour chaque bénéficiaire / groupe / sous-groupe, la liste des personnes (feuilles)
+ * qu'il couvre. Permet d'attribuer un bien à un groupe : il est réparti à parts
+ * égales entre ces personnes.
+ */
+function feuillesParId(beneficiaires: Beneficiaire[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  const visit = (node: Beneficiaire | Membre): string[] => {
+    if (node.kind === 'personne') {
+      map.set(node.id, [node.id]);
+      return [node.id];
+    }
+    const ids = node.membres.flatMap(visit);
+    map.set(node.id, ids);
+    return ids;
+  };
+  beneficiaires.forEach(visit);
+  return map;
+}
+
+/**
  * Construit les « slots » réservataires : un enfant, ou une souche (qui représente
  * un enfant prédécédé) compte pour UN seul enfant, sa réserve étant appréciée
  * collectivement (somme reçue par ses membres).
@@ -139,6 +159,8 @@ export function calculer(s: Partage): Resultat {
   const passifCents = s.passif.reduce((a, p) => a + toCents(Fraction.parse(p.montantEuros)), 0n);
 
   // 3) Attributions (en nature, éventuellement démembrées : fraction du bien × droit).
+  //    Une attribution peut viser une personne ou un groupe (réparti à parts égales).
+  const feuillesDe = feuillesParId(s.beneficiaires);
   let horsPartCents = 0n;
   const surPartParPersonne = new Map<string, bigint>();
   const biensRecus = new Map<string, LigneResultat['biensRecus']>();
@@ -146,6 +168,8 @@ export function calculer(s: Partage): Resultat {
   for (const att of s.attributions) {
     const bien = bienById.get(att.bienId);
     if (!bien) continue;
+    const cibles = feuillesDe.get(att.beneficiaireId) ?? [att.beneficiaireId];
+    if (cibles.length === 0) continue; // groupe sans personne : rien à attribuer
     const droit: Droit = att.droit ?? 'pleine';
     const fr = att.fraction ?? { n: 1, d: 1 };
     const fracBien = fr.d === 0 ? Fraction.zero : Fraction.ratio(fr.n, fr.d);
@@ -159,11 +183,17 @@ export function calculer(s: Partage): Resultat {
     const valeurCents = arrondi(Fraction.int(bien.valeurEntranteCents).mul(partValeur));
     repartiParBien.set(att.bienId, (repartiParBien.get(att.bienId) ?? Fraction.zero).add(partValeur));
 
-    const liste = biensRecus.get(att.beneficiaireId) ?? [];
-    liste.push({ nom: bien.nom, valeurCents, imputation: att.imputation, droit });
-    biensRecus.set(att.beneficiaireId, liste);
     if (att.imputation === 'horsPart') horsPartCents += valeurCents;
-    else surPartParPersonne.set(att.beneficiaireId, (surPartParPersonne.get(att.beneficiaireId) ?? 0n) + valeurCents);
+    // Réparti à parts égales entre les cibles (plus forts restes ⇒ somme = valeurCents).
+    const partCible = Fraction.ratio(1, cibles.length);
+    const partsCents = splitByFractions(valeurCents, cibles.map(() => partCible));
+    cibles.forEach((pid, j) => {
+      const v = partsCents[j];
+      const liste = biensRecus.get(pid) ?? [];
+      liste.push({ nom: bien.nom, valeurCents: v, imputation: att.imputation, droit });
+      biensRecus.set(pid, liste);
+      if (att.imputation === 'surPart') surPartParPersonne.set(pid, (surPartParPersonne.get(pid) ?? 0n) + v);
+    });
   }
   // Garde-fou : un bien attribué doit l'être en totalité (en valeur).
   for (const [bienId, frac] of repartiParBien) {
