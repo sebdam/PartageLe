@@ -52,10 +52,10 @@ h1 { font-size: 2rem; letter-spacing: -0.02em; color: var(--primaire-fonce); }
   padding: 1rem 1.25rem 2rem;
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 @media (min-width: 920px) {
-  .grille { grid-template-columns: 1.1fr 0.9fr; align-items: start; }
+  .grille { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); align-items: start; }
   .apercu { position: sticky; top: 1rem; }
 }
 
