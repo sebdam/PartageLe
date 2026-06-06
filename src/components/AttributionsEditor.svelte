@@ -1,22 +1,38 @@
 <script lang="ts">
-  import type { Partage, Attribution, Droit } from '../lib/model';
+  import type { Partage, Attribution, Droit, Beneficiaire, Membre } from '../lib/model';
   import type { Vocabulaire } from '../lib/contexte';
-  import { uid, listerPersonnes, DROITS } from '../lib/model';
+  import { uid, listerCibles, DROITS } from '../lib/model';
   import { pourcentUsufruit } from '../lib/usufruit';
   import { Fraction } from '../lib/fraction';
   import { formatCents, toCents } from '../lib/money';
 
   let { partage, vocab }: { partage: Partage; vocab: Vocabulaire } = $props();
 
-  const personnes = $derived(listerPersonnes(partage));
+  const cibles = $derived(listerCibles(partage));
   // Le démembrement (usufruit / nue-propriété) n'a de sens qu'en succession.
   const demembrable = $derived(vocab.montreReserve);
+
+  // Nombre de personnes derrière chaque cible (1 pour une personne, N pour un groupe).
+  const tailleCible = $derived.by(() => {
+    const map = new Map<string, number>();
+    const visit = (node: Beneficiaire | Membre): number => {
+      if (node.kind === 'personne') {
+        map.set(node.id, 1);
+        return 1;
+      }
+      const k = node.membres.reduce((a, m) => a + visit(m), 0);
+      map.set(node.id, k);
+      return k;
+    };
+    partage.beneficiaires.forEach(visit);
+    return map;
+  });
 
   function ajouter() {
     partage.attributions.push({
       id: uid('att'),
       bienId: partage.biens[0]?.id ?? '',
-      beneficiaireId: personnes[0]?.id ?? '',
+      beneficiaireId: cibles[0]?.id ?? '',
       imputation: 'surPart',
       droit: 'pleine',
       fraction: { n: 1, d: 1 },
@@ -54,8 +70,9 @@
         </select>
         <span class="fleche">{vocab.prepositionAttribution}</span>
         <select bind:value={att.beneficiaireId}>
-          {#each personnes as p}<option value={p.id}>{p.nom}</option>{/each}
+          {#each cibles as c}<option value={c.id}>{c.nom}</option>{/each}
         </select>
+        {#if (tailleCible.get(att.beneficiaireId) ?? 1) > 1}<span class="reste-tag">à parts égales</span>{/if}
         {#if vocab.montreImputation}
           <select bind:value={att.imputation}>
             <option value="surPart">{vocab.labelSurPart}</option>
@@ -92,7 +109,7 @@
   {/each}
 </div>
 
-{#if partage.biens.length === 0 || personnes.length === 0}
+{#if partage.biens.length === 0 || cibles.length === 0}
   <p class="aide">Ajoute au moins un élément et un participant pour pouvoir attribuer.</p>
 {:else}
   <button class="add" onclick={ajouter}>+ {vocab.attribuer}</button>

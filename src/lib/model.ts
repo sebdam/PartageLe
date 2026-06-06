@@ -150,3 +150,28 @@ export function listerPersonnes(s: Partage): { id: Id; nom: string }[] {
   }
   return out;
 }
+
+/** Cible d'une attribution : une personne, ou un groupe (réparti à parts égales). */
+export interface Cible {
+  id: Id;
+  nom: string;
+  groupe: boolean;
+}
+
+/**
+ * Liste les cibles d'attribution : personnes ET groupes/sous-groupes. Attribuer à
+ * un groupe répartit le bien à parts égales entre ses membres (feuilles).
+ */
+export function listerCibles(s: Partage): Cible[] {
+  const out: Cible[] = [];
+  const visit = (node: Beneficiaire | Membre, prefix: string) => {
+    if (node.kind === 'personne') {
+      out.push({ id: node.id, nom: prefix + (node.nom || 'Sans nom'), groupe: false });
+    } else {
+      out.push({ id: node.id, nom: `${prefix}${node.nom || 'Groupe'} (groupe)`, groupe: true });
+      node.membres.forEach((m) => visit(m, `${prefix}— `));
+    }
+  };
+  s.beneficiaires.forEach((b) => visit(b, ''));
+  return out;
+}
