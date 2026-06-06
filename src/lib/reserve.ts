@@ -8,6 +8,16 @@ export interface ReserveSlots {
   conjointRecuCents: bigint | null;
 }
 
+/** Détail d'un réservataire : ce qu'il reçoit, son seuil (réserve individuelle) et la marge. */
+export interface ReservataireDetail {
+  nom: string;
+  type: 'enfant' | 'conjoint';
+  recuCents: bigint;
+  seuilCents: bigint;
+  /** Reçu − seuil (négatif ⇒ réservataire lésé). */
+  margeCents: bigint;
+}
+
 export interface ReserveInfo {
   nbEnfants: number;
   conjoint: boolean;
@@ -15,6 +25,9 @@ export interface ReserveInfo {
   reserveGlobale: Fraction;
   reserveGlobaleCents: bigint;
   quotiteDisponibleCents: bigint;
+  /** Réserve individuelle (par enfant / souche, ou par conjoint). */
+  seuilCents: bigint;
+  reservataires: ReservataireDetail[];
   alertes: string[];
 }
 
@@ -44,21 +57,42 @@ export function analyserReserve(baseCents: bigint, horsPartCents: bigint, slots:
   const reserveGlobaleCents = arrondi(reserveGlobale.mul(Fraction.int(baseCents)));
   const quotiteDisponibleCents = baseCents - reserveGlobaleCents;
   const alertes: string[] = [];
+  const reservataires: ReservataireDetail[] = [];
+  let seuilCents: bigint;
 
   if (nbEnfants >= 1) {
-    const seuil = reserveGlobaleCents / BigInt(nbEnfants); // réserve individuelle par enfant / souche
+    seuilCents = reserveGlobaleCents / BigInt(nbEnfants); // réserve individuelle par enfant / souche
     for (const e of slots.enfants) {
-      if (e.recuCents < seuil) {
-        alertes.push(`${e.nom || 'Un enfant'} reçoit ${formatCents(e.recuCents)}, en dessous de sa réserve (≈ ${formatCents(seuil)}).`);
+      const margeCents = e.recuCents - seuilCents;
+      reservataires.push({ nom: e.nom || 'Enfant', type: 'enfant', recuCents: e.recuCents, seuilCents, margeCents });
+      if (margeCents < 0n) {
+        alertes.push(`${e.nom || 'Un enfant'} reçoit ${formatCents(e.recuCents)}, en dessous de sa réserve (≈ ${formatCents(seuilCents)}).`);
       }
     }
-  } else if (slots.conjointRecuCents !== null && slots.conjointRecuCents < reserveGlobaleCents) {
-    alertes.push(`Le conjoint reçoit ${formatCents(slots.conjointRecuCents)}, en dessous de sa réserve (${formatCents(reserveGlobaleCents)}).`);
+  } else {
+    // conjoint réservataire (garanti non null car la réserve globale a été assignée)
+    seuilCents = reserveGlobaleCents;
+    const recuCents = slots.conjointRecuCents ?? 0n;
+    const margeCents = recuCents - seuilCents;
+    reservataires.push({ nom: 'Conjoint', type: 'conjoint', recuCents, seuilCents, margeCents });
+    if (margeCents < 0n) {
+      alertes.push(`Le conjoint reçoit ${formatCents(recuCents)}, en dessous de sa réserve (${formatCents(seuilCents)}).`);
+    }
   }
 
   if (horsPartCents > quotiteDisponibleCents) {
     alertes.push(`Les attributions hors part (${formatCents(horsPartCents)}) dépassent la quotité disponible (${formatCents(quotiteDisponibleCents)}).`);
   }
 
-  return { nbEnfants, conjoint, baseCents, reserveGlobale, reserveGlobaleCents, quotiteDisponibleCents, alertes };
+  return {
+    nbEnfants,
+    conjoint,
+    baseCents,
+    reserveGlobale,
+    reserveGlobaleCents,
+    quotiteDisponibleCents,
+    seuilCents,
+    reservataires,
+    alertes,
+  };
 }

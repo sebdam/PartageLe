@@ -100,6 +100,23 @@ export async function construirePdf(resultat: Resultat, vocab: Vocabulaire): Pro
     doc.setFontSize(10);
     doc.text(`Réserve globale : ${r.reserveGlobale.toString()}     |     Quotité disponible : ${euros(r.quotiteDisponibleCents)}`, 14, y);
     y += 6;
+    const nbTxt = r.nbEnfants > 0 ? `${r.nbEnfants} réservataire${r.nbEnfants > 1 ? 's' : ''}` : 'Conjoint réservataire';
+    doc.text(`${nbTxt}     |     Réserve individuelle : ${euros(r.seuilCents)}`, 14, y);
+    y += 3;
+    autoTable(doc, {
+      startY: y,
+      head: [['Réservataire', 'Reçu', 'Seuil', 'Marge']],
+      body: r.reservataires.map((res) => [
+        res.nom,
+        euros(res.recuCents),
+        euros(res.seuilCents),
+        (res.margeCents > 0n ? '+' : '') + euros(res.margeCents),
+      ]),
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [16, 185, 129] },
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+    });
+    y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 6;
     if (r.alertes.length === 0) {
       doc.setTextColor(4, 120, 87);
       doc.text('Réserve héréditaire respectée.', 14, y);

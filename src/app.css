@@ -230,6 +230,12 @@ select.lien { font-size: 0.85rem; }
 .reserve-ok { color: var(--recoit); font-weight: 600; font-size: 0.9rem; margin: 0.2rem 0; }
 .reserve-note { color: var(--doux); font-size: 0.75rem; margin-top: 0.3rem; }
 .reserve .avertissements { margin: 0.3rem 0 0; }
+.reserve-detail-tete { font-size: 0.78rem; color: var(--doux); margin: 0.1rem 0 0.4rem; }
+.reserve-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-bottom: 0.4rem; }
+.reserve-table th { text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--doux); padding: 0.2rem 0.3rem; }
+.reserve-table td { padding: 0.2rem 0.3rem; border-top: 1px solid rgba(15, 23, 42, 0.08); }
+.reserve-table .r { text-align: right; font-variant-numeric: tabular-nums; }
+.reserve-table .negatif { color: #dc2626; font-weight: 600; }
 
 /* Actions dupliquées en haut du formulaire */
 .actions-haut { margin-top: 0; margin-bottom: 0.75rem; justify-content: flex-end; }
