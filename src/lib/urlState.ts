@@ -1,12 +1,20 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
-import type { Beneficiaire, Membre, Partage } from './model';
+import { CATEGORIES } from './model';
+import type { Attribution, Beneficiaire, Bien, Categorie, Lien, Membre, Part, Partage } from './model';
 
 /**
- * Partage par lien (zéro backend) : l'état complet est COMPRESSÉ (lz-string) et
- * placé dans le hash de l'URL. Les identifiants sont d'abord raccourcis, pour des
- * liens nettement plus courts (~−50 %, compatibles SMS). Les anciens liens
- * (#p=<base64>) restent lisibles.
+ * Partage par lien (zéro backend). L'état est sérialisé en TUPLES compacts (pas de
+ * noms de clés ; catégories / liens / types de part en petits entiers ; ids
+ * raccourcis ; devise et défauts omis), puis compressé (lz-string) et placé dans
+ * le hash de l'URL → liens nettement plus courts (compatibles SMS).
+ * Les anciens liens #p=<base64 JSON> restent lisibles.
  */
+
+const VERSION = 1;
+const CATS = CATEGORIES.map((c) => c.value); // index ↔ catégorie
+const LIENS: Lien[] = ['enfant', 'conjoint', 'autre'];
+
+// --- Identifiants courts -----------------------------------------------------
 
 /** Réécrit tous les identifiants en versions courtes (et remappe les références). */
 function compacter(p: Partage): Partage {
@@ -27,7 +35,6 @@ function compacter(p: Partage): Partage {
   );
   const biens = p.biens.map((b) => ({ ...b, id: remap(b.id) }));
   const passif = p.passif.map((x) => ({ ...x, id: remap(x.id) }));
-  // Les attributions référencent des biens/personnes déjà remappés ci-dessus.
   const attributions = p.attributions.map((a) => ({
     ...a,
     id: remap(a.id),
@@ -37,44 +44,101 @@ function compacter(p: Partage): Partage {
   return { ...p, biens, passif, beneficiaires, attributions };
 }
 
-function estPartage(obj: unknown): obj is Partage {
-  return (
-    !!obj &&
-    typeof obj === 'object' &&
-    Array.isArray((obj as Partage).biens) &&
-    Array.isArray((obj as Partage).beneficiaires)
-  );
+// --- Codec tuples ↔ Partage --------------------------------------------------
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function partVers(p: Part): unknown[] {
+  if (p.type === 'fraction') return [0, p.n, p.d];
+  if (p.type === 'pourcent') return [1, p.valeur];
+  return [2];
+}
+function partDe(a: any): Part {
+  if (a[0] === 0) return { type: 'fraction', n: a[1], d: a[2] };
+  if (a[0] === 1) return { type: 'pourcent', valeur: a[1] };
+  return { type: 'reste' };
+}
+const lienVers = (l: Lien | undefined): number => Math.max(0, LIENS.indexOf(l ?? 'autre'));
+const lienDe = (c: number): Lien => LIENS[c] ?? 'autre';
+
+function bienVers(b: Bien): unknown[] {
+  return [b.id, b.nom, b.valeurEuros, b.quotePart.n, b.quotePart.d, Math.max(0, CATS.indexOf(b.categorie))];
+}
+function bienDe(a: any): Bien {
+  return { id: a[0], nom: a[1], categorie: (CATS[a[5]] ?? 'autre') as Categorie, valeurEuros: a[2], quotePart: { n: a[3], d: a[4] } };
+}
+function membreVers(m: Membre): unknown[] {
+  return m.kind === 'personne' ? [0, m.id, m.nom, lienVers(m.lien)] : [1, m.id, m.nom, m.membres.map(membreVers)];
+}
+function membreDe(a: any): Membre {
+  return a[0] === 0
+    ? { kind: 'personne', id: a[1], nom: a[2], lien: lienDe(a[3]) }
+    : { kind: 'sousGroupe', id: a[1], nom: a[2], membres: (a[3] ?? []).map(membreDe) };
+}
+function benefVers(b: Beneficiaire): unknown[] {
+  return b.kind === 'personne'
+    ? [0, b.id, b.nom, partVers(b.part), lienVers(b.lien)]
+    : [1, b.id, b.nom, partVers(b.part), b.membres.map(membreVers)];
+}
+function benefDe(a: any): Beneficiaire {
+  return a[0] === 0
+    ? { kind: 'personne', id: a[1], nom: a[2], part: partDe(a[3]), lien: lienDe(a[4]) }
+    : { kind: 'groupe', id: a[1], nom: a[2], part: partDe(a[3]), membres: (a[4] ?? []).map(membreDe) };
+}
+function attrVers(a: Attribution): unknown[] {
+  return [a.id, a.bienId, a.beneficiaireId, a.imputation === 'horsPart' ? 1 : 0];
+}
+function attrDe(a: any): Attribution {
+  return { id: a[0], bienId: a[1], beneficiaireId: a[2], imputation: a[3] === 1 ? 'horsPart' : 'surPart' };
 }
 
-function normaliserContexte(p: Partage): Partage {
-  if (p.contexte !== 'succession' && p.contexte !== 'note') p.contexte = 'succession';
-  return p;
+function toTuple(p: Partage): unknown[] {
+  return [
+    VERSION,
+    p.contexte === 'note' ? 1 : 0,
+    p.titre,
+    p.biens.map(bienVers),
+    p.passif.map((x) => [x.id, x.libelle, x.montantEuros]),
+    p.beneficiaires.map(benefVers),
+    p.attributions.map(attrVers),
+  ];
 }
+function fromTuple(t: any): Partage | null {
+  if (!Array.isArray(t) || t[0] !== VERSION) return null;
+  return {
+    contexte: t[1] === 1 ? 'note' : 'succession',
+    titre: typeof t[2] === 'string' ? t[2] : '',
+    devise: 'EUR',
+    biens: (t[3] ?? []).map(bienDe),
+    passif: (t[4] ?? []).map((x: any) => ({ id: x[0], libelle: x[1], montantEuros: x[2] })),
+    beneficiaires: (t[5] ?? []).map(benefDe),
+    attributions: (t[6] ?? []).map(attrDe),
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+// --- API ---------------------------------------------------------------------
 
 export function encoder(s: Partage): string {
-  return compressToEncodedURIComponent(JSON.stringify(compacter(s)));
+  return compressToEncodedURIComponent(JSON.stringify(toTuple(compacter(s))));
 }
 
 export function decoder(param: string): Partage | null {
   try {
     const json = decompressFromEncodedURIComponent(param);
-    if (!json) return null;
-    const obj = JSON.parse(json);
-    return estPartage(obj) ? normaliserContexte(obj) : null;
+    return json ? fromTuple(JSON.parse(json)) : null;
   } catch {
     return null;
   }
 }
 
-// --- Compatibilité : anciens liens #p=<base64 UTF-8> ------------------------
-function fromBase64(b64: string): string {
-  const bin = atob(b64);
-  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-}
+// Compatibilité : anciens liens #p=<base64 UTF-8 du JSON complet>.
 function decoderLegacy(param: string): Partage | null {
   try {
-    const obj = JSON.parse(fromBase64(decodeURIComponent(param)));
-    return estPartage(obj) ? normaliserContexte(obj) : null;
+    const bin = atob(decodeURIComponent(param));
+    const obj = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+    if (!obj || !Array.isArray(obj.biens) || !Array.isArray(obj.beneficiaires)) return null;
+    if (obj.contexte !== 'succession' && obj.contexte !== 'note') obj.contexte = 'succession';
+    return obj as Partage;
   } catch {
     return null;
   }
