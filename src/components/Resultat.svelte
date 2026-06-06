@@ -120,11 +120,12 @@
         <tr class:residu={l.estResidu}>
           <td>
             <span class="nom">{l.nom}</span>
+            {#if l.demembrement}<span class="represente">{l.demembrement === 'usufruit' ? 'usufruit' : 'nue-propriété'}</span>{/if}
             {#if l.representeDe}<span class="represente">représente {l.representeDe}</span>{/if}
             {#if l.biensRecus.length > 0}
               <span class="biens">
                 {#each l.biensRecus as b}
-                  <span class="chip" class:hors={b.imputation === 'horsPart'}>{b.nom} · {formatCents(b.valeurCents)}{vocab.montreImputation && b.imputation === 'horsPart' ? ' (hors part)' : ''}</span>
+                  <span class="chip" class:hors={b.imputation === 'horsPart'}>{b.nom} · {formatCents(b.valeurCents)}{b.droit === 'usufruit' ? ' · usufruit' : b.droit === 'nue' ? ' · nue-propriété' : ''}{vocab.montreImputation && b.imputation === 'horsPart' ? ' (hors part)' : ''}</span>
                 {/each}
               </span>
             {/if}

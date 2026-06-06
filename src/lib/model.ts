@@ -65,13 +65,28 @@ export type Beneficiaire =
   | { kind: 'personne'; id: Id; nom: string; part: Part; lien?: Lien }
   | { kind: 'groupe'; id: Id; nom: string; part: Part; membres: Membre[] };
 
-/** Attribution d'un bien à un bénéficiaire (feuille), avant le partage du reste. */
+/** Droit transmis lors d'une attribution : pleine propriété, usufruit ou nue-propriété. */
+export type Droit = 'pleine' | 'usufruit' | 'nue';
+
+export const DROITS = [
+  { value: 'pleine', label: 'Pleine propriété' },
+  { value: 'usufruit', label: 'Usufruit' },
+  { value: 'nue', label: 'Nue-propriété' },
+] as const;
+
+/** Attribution d'une (fraction de) bien à un bénéficiaire, avant le partage du reste. */
 export interface Attribution {
   id: Id;
   bienId: Id;
   beneficiaireId: Id;
   /** sur part = avance imputée (génère une soulte) ; hors part = en plus (préciput). */
   imputation: 'surPart' | 'horsPart';
+  /** Droit transmis (défaut : pleine propriété). */
+  droit?: Droit;
+  /** Fraction du bien attribuée (défaut : 1/1). */
+  fraction?: { n: number; d: number };
+  /** Âge de l'usufruitier (si droit = usufruit ou nue-propriété ; barème art. 669 CGI). */
+  ageUsufruitier?: number;
 }
 
 export interface Partage {
@@ -82,6 +97,8 @@ export interface Partage {
   passif: Passif[];
   beneficiaires: Beneficiaire[];
   attributions: Attribution[];
+  /** Option du conjoint survivant : s'il prend 100 % en usufruit, son âge (barème 669 CGI). */
+  usufruitConjoint?: number;
 }
 
 // --- Identifiants & fabriques (utilisés par l'UI) ---------------------------
