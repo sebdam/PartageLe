@@ -1,6 +1,6 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import { CATEGORIES } from './model';
-import type { Attribution, Beneficiaire, Bien, Categorie, Lien, Membre, Part, Partage } from './model';
+import type { Attribution, Beneficiaire, Bien, Categorie, Droit, Lien, Membre, Part, Partage } from './model';
 
 /**
  * Partage par lien (zéro backend). L'état est sérialisé en TUPLES compacts (pas de
@@ -13,6 +13,7 @@ import type { Attribution, Beneficiaire, Bien, Categorie, Lien, Membre, Part, Pa
 const VERSION = 1;
 const CATS = CATEGORIES.map((c) => c.value); // index ↔ catégorie
 const LIENS: Lien[] = ['enfant', 'conjoint', 'autre'];
+const DROITS_ORDRE: Droit[] = ['pleine', 'usufruit', 'nue'];
 
 // --- Identifiants courts -----------------------------------------------------
 
@@ -85,14 +86,24 @@ function benefDe(a: any): Beneficiaire {
     : { kind: 'groupe', id: a[1], nom: a[2], part: partDe(a[3]), membres: (a[4] ?? []).map(membreDe) };
 }
 function attrVers(a: Attribution): unknown[] {
-  return [a.id, a.bienId, a.beneficiaireId, a.imputation === 'horsPart' ? 1 : 0];
+  const base = [a.id, a.bienId, a.beneficiaireId, a.imputation === 'horsPart' ? 1 : 0];
+  const droit = a.droit ?? 'pleine';
+  const fr = a.fraction ?? { n: 1, d: 1 };
+  const simple = droit === 'pleine' && fr.n === 1 && fr.d === 1 && a.ageUsufruitier == null;
+  return simple ? base : [...base, Math.max(0, DROITS_ORDRE.indexOf(droit)), fr.n, fr.d, a.ageUsufruitier ?? 0];
 }
 function attrDe(a: any): Attribution {
-  return { id: a[0], bienId: a[1], beneficiaireId: a[2], imputation: a[3] === 1 ? 'horsPart' : 'surPart' };
+  const att: Attribution = { id: a[0], bienId: a[1], beneficiaireId: a[2], imputation: a[3] === 1 ? 'horsPart' : 'surPart' };
+  if (a.length > 4) {
+    att.droit = DROITS_ORDRE[a[4]] ?? 'pleine';
+    att.fraction = { n: a[5], d: a[6] };
+    att.ageUsufruitier = a[7];
+  }
+  return att;
 }
 
 function toTuple(p: Partage): unknown[] {
-  return [
+  const t: unknown[] = [
     VERSION,
     p.contexte === 'note' ? 1 : 0,
     p.titre,
@@ -101,10 +112,12 @@ function toTuple(p: Partage): unknown[] {
     p.beneficiaires.map(benefVers),
     p.attributions.map(attrVers),
   ];
+  if (p.usufruitConjoint != null) t.push(p.usufruitConjoint); // index 7, omis sinon
+  return t;
 }
 function fromTuple(t: any): Partage | null {
   if (!Array.isArray(t) || t[0] !== VERSION) return null;
-  return {
+  const p: Partage = {
     contexte: t[1] === 1 ? 'note' : 'succession',
     titre: typeof t[2] === 'string' ? t[2] : '',
     devise: 'EUR',
@@ -113,6 +126,8 @@ function fromTuple(t: any): Partage | null {
     beneficiaires: (t[5] ?? []).map(benefDe),
     attributions: (t[6] ?? []).map(attrDe),
   };
+  if (typeof t[7] === 'number') p.usufruitConjoint = t[7];
+  return p;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 

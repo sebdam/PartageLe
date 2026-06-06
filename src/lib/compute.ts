@@ -1,7 +1,8 @@
 import { Fraction, sum } from './fraction';
-import { toCents, splitByFractions } from './money';
+import { toCents, splitByFractions, arrondi } from './money';
 import { analyserReserve, type ReserveInfo, type ReserveSlots } from './reserve';
-import type { Beneficiaire, Lien, Membre, Part, Partage } from './model';
+import { coeffUsufruit, coeffNuePropriete } from './usufruit';
+import type { Beneficiaire, Droit, Lien, Membre, Part, Partage } from './model';
 
 /** Une ligne du résultat (un bénéficiaire, ou le résidu non attribué). */
 export interface LigneResultat {
@@ -14,12 +15,14 @@ export interface LigneResultat {
   pourcent: number;
   /** Montant théorique de la part, en centimes. */
   montantCents: bigint;
-  /** Biens reçus en nature. */
-  biensRecus: { nom: string; valeurCents: bigint; imputation: 'surPart' | 'horsPart' }[];
+  /** Biens reçus en nature (avec le droit transmis). */
+  biensRecus: { nom: string; valeurCents: bigint; imputation: 'surPart' | 'horsPart'; droit: Droit }[];
   /** Soulte en centimes : > 0 ⇒ la personne verse, < 0 ⇒ elle reçoit. */
   soulteCents: bigint;
   /** Si la personne vient par représentation : « qui » elle représente (chaîne de souches). */
   representeDe?: string;
+  /** Démembrement (option du conjoint) : 'usufruit' ou 'nue' propriété. */
+  demembrement?: 'usufruit' | 'nue';
 }
 
 export interface Resultat {
@@ -43,6 +46,7 @@ interface Feuille {
   lien?: Lien;
   /** Chaîne des souches (sous-groupes) dont la personne descend, du haut vers le bas. */
   souches?: string[];
+  demembrement?: 'usufruit' | 'nue';
 }
 
 /** Fraction explicite d'une part, ou null si c'est « le reste ». */
@@ -58,21 +62,21 @@ function partExplicite(part: Part): Fraction | null {
 }
 
 /** Développe un bénéficiaire en feuilles (personnes), les groupes étant répartis à parts égales. */
-function developper(node: Beneficiaire, fraction: Fraction, out: Feuille[]): void {
+function developper(node: Beneficiaire, fraction: Fraction, out: Feuille[], dem?: 'usufruit' | 'nue'): void {
   if (node.kind === 'personne') {
-    out.push({ id: node.id, nom: node.nom || 'Sans nom', fraction, lien: node.lien });
+    out.push({ id: node.id, nom: node.nom || 'Sans nom', fraction, lien: node.lien, demembrement: dem });
     return;
   }
-  developperMembres(node.membres, fraction, out, []);
+  developperMembres(node.membres, fraction, out, [], dem);
 }
 
-function developperMembres(membres: Membre[], fraction: Fraction, out: Feuille[], souches: string[]): void {
+function developperMembres(membres: Membre[], fraction: Fraction, out: Feuille[], souches: string[], dem?: 'usufruit' | 'nue'): void {
   const k = membres.length;
   if (k === 0) return; // groupe vide : sa part rejoindra le « non attribué »
   const chacun = fraction.div(Fraction.int(k));
   for (const m of membres) {
-    if (m.kind === 'personne') out.push({ id: m.id, nom: m.nom || 'Sans nom', fraction: chacun, lien: m.lien, souches });
-    else developperMembres(m.membres, chacun, out, [...souches, m.nom || 'Souche']);
+    if (m.kind === 'personne') out.push({ id: m.id, nom: m.nom || 'Sans nom', fraction: chacun, lien: m.lien, souches, demembrement: dem });
+    else developperMembres(m.membres, chacun, out, [...souches, m.nom || 'Souche'], dem);
   }
 }
 
@@ -134,21 +138,39 @@ export function calculer(s: Partage): Resultat {
   // 2) Passif.
   const passifCents = s.passif.reduce((a, p) => a + toCents(Fraction.parse(p.montantEuros)), 0n);
 
-  // 3) Attributions (en nature).
+  // 3) Attributions (en nature, éventuellement démembrées : fraction du bien × droit).
   let horsPartCents = 0n;
   const surPartParPersonne = new Map<string, bigint>();
   const biensRecus = new Map<string, LigneResultat['biensRecus']>();
+  const repartiParBien = new Map<string, Fraction>();
   for (const att of s.attributions) {
     const bien = bienById.get(att.bienId);
     if (!bien) continue;
+    const droit: Droit = att.droit ?? 'pleine';
+    const fr = att.fraction ?? { n: 1, d: 1 };
+    const fracBien = fr.d === 0 ? Fraction.zero : Fraction.ratio(fr.n, fr.d);
+    const coeff =
+      droit === 'usufruit'
+        ? coeffUsufruit(att.ageUsufruitier ?? 0)
+        : droit === 'nue'
+          ? coeffNuePropriete(att.ageUsufruitier ?? 0)
+          : Fraction.one;
+    const partValeur = fracBien.mul(coeff); // fraction de la valeur du bien revenant ici
+    const valeurCents = arrondi(Fraction.int(bien.valeurEntranteCents).mul(partValeur));
+    repartiParBien.set(att.bienId, (repartiParBien.get(att.bienId) ?? Fraction.zero).add(partValeur));
+
     const liste = biensRecus.get(att.beneficiaireId) ?? [];
-    liste.push({ nom: bien.nom, valeurCents: bien.valeurEntranteCents, imputation: att.imputation });
+    liste.push({ nom: bien.nom, valeurCents, imputation: att.imputation, droit });
     biensRecus.set(att.beneficiaireId, liste);
-    if (att.imputation === 'horsPart') {
-      horsPartCents += bien.valeurEntranteCents;
-    } else {
-      surPartParPersonne.set(att.beneficiaireId, (surPartParPersonne.get(att.beneficiaireId) ?? 0n) + bien.valeurEntranteCents);
-    }
+    if (att.imputation === 'horsPart') horsPartCents += valeurCents;
+    else surPartParPersonne.set(att.beneficiaireId, (surPartParPersonne.get(att.beneficiaireId) ?? 0n) + valeurCents);
+  }
+  // Garde-fou : un bien attribué doit l'être en totalité (en valeur).
+  for (const [bienId, frac] of repartiParBien) {
+    const c = frac.cmp(Fraction.one);
+    const nomBien = bienById.get(bienId)?.nom ?? 'Un bien';
+    if (c < 0) avertissements.push(`${nomBien} n'est réparti qu'à ${pct(frac)} (part non attribuée).`);
+    else if (c > 0) avertissements.push(`${nomBien} est attribué à ${pct(frac)} (plus de 100 %).`);
   }
 
   const masseCents = actifCents - passifCents - horsPartCents;
@@ -156,10 +178,19 @@ export function calculer(s: Partage): Resultat {
     avertissements.push('La masse à partager est négative : le passif et les attributions dépassent l’actif.');
   }
 
-  // 4) Résolution du « reste » au niveau des bénéficiaires de premier rang.
+  // 4) Option du conjoint : s'il prend 100 % en usufruit, il reçoit U % de la masse,
+  //    les autres se partagent la nue-propriété (1 − U %) au prorata de leurs parts.
+  const estConjoint = (b: Beneficiaire) => b.kind === 'personne' && b.lien === 'conjoint';
+  const optionConjoint =
+    s.contexte === 'succession' && s.usufruitConjoint != null && s.beneficiaires.some(estConjoint);
+  const uCoeff = optionConjoint ? coeffUsufruit(s.usufruitConjoint as number) : Fraction.zero;
+  const partNue = Fraction.one.sub(uCoeff);
+
+  // Résolution du « reste » (le conjoint en usufruit est traité à part).
   let sommeExplicite = Fraction.zero;
   let nbReste = 0;
   for (const b of s.beneficiaires) {
+    if (optionConjoint && estConjoint(b)) continue;
     const f = partExplicite(b.part);
     if (f === null) nbReste += 1;
     else sommeExplicite = sommeExplicite.add(f);
@@ -170,8 +201,12 @@ export function calculer(s: Partage): Resultat {
   // 5) Développement en feuilles (personnes).
   const feuilles: Feuille[] = [];
   for (const b of s.beneficiaires) {
-    const f = partExplicite(b.part) ?? resteChacun;
-    developper(b, f, feuilles);
+    if (optionConjoint && b.kind === 'personne' && b.lien === 'conjoint') {
+      feuilles.push({ id: b.id, nom: b.nom || 'Conjoint', fraction: uCoeff, lien: b.lien, demembrement: 'usufruit' });
+      continue;
+    }
+    const f = (partExplicite(b.part) ?? resteChacun).mul(optionConjoint ? partNue : Fraction.one);
+    developper(b, f, feuilles, optionConjoint ? 'nue' : undefined);
   }
   const sommeFeuilles = sum(feuilles.map((f) => f.fraction));
   const nonAttribue = Fraction.one.sub(sommeFeuilles);
@@ -212,6 +247,7 @@ export function calculer(s: Partage): Resultat {
       // Soulte = ce qu'on a reçu en nature (sur part) − sa part théorique.
       soulteCents: estResidu ? 0n : surPart - montant,
       representeDe: f.souches && f.souches.length > 0 ? f.souches.join(' › ') : undefined,
+      demembrement: f.demembrement,
     };
   });
 

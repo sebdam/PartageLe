@@ -34,6 +34,9 @@
   function vider() {
     if (partage) partage = partageVide(partage.contexte);
   }
+  function toggleUsufruitConjoint(on: boolean) {
+    if (partage) partage.usufruitConjoint = on ? (partage.usufruitConjoint ?? 70) : undefined;
+  }
 
   async function partager() {
     if (!partage) return;
@@ -90,6 +93,19 @@
         <h2>{vocab.sectionBeneficiaires}</h2>
         <p class="aide">{vocab.aideBeneficiaires}</p>
         <BeneficiairesEditor beneficiaires={partage.beneficiaires} {vocab} />
+        {#if vocab.montreReserve && partage.beneficiaires.some((b) => b.kind === 'personne' && b.lien === 'conjoint')}
+          <div class="conjoint-usufruit">
+            <label class="case">
+              <input type="checkbox" checked={partage.usufruitConjoint != null} onchange={(e) => toggleUsufruitConjoint(e.currentTarget.checked)} />
+              Le conjoint prend 100 % en usufruit
+            </label>
+            {#if partage.usufruitConjoint != null}
+              <label class="champ">Âge du conjoint
+                <input class="num" type="number" min="0" max="120" bind:value={partage.usufruitConjoint} />
+              </label>
+            {/if}
+          </div>
+        {/if}
       </section>
 
       <section class="carte">
