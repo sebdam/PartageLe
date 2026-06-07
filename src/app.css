@@ -97,6 +97,9 @@ input:focus, select:focus { outline: 2px solid var(--primaire); outline-offset: 
 .ligne { display: flex; gap: 0.5rem; align-items: center; flex-wrap: nowrap; }
 .ligne.wrap { flex-wrap: wrap; }
 .grow { flex: 1 1 auto; }
+/* Attribution : la croix de suppression reste en haut à droite de la carte (comme pour les héritiers). */
+.ligne.attr-tete { flex-wrap: nowrap; align-items: flex-start; }
+.controles { flex: 1 1 auto; min-width: 0; }
 .num { width: 7rem; }
 .avec-unite { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
 .avec-unite input { width: 8rem; }
