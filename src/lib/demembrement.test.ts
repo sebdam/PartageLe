@@ -67,7 +67,7 @@ describe('option du conjoint (100 % usufruit)', () => {
     expect(lig(res, 'c').demembrement).toBe('usufruit');
     expect(lig(res, 'e1').montantCents).toBe(3500000n);
     expect(lig(res, 'e2').montantCents).toBe(3500000n);
-    expect(lig(res, 'e1').demembrement).toBe('nue');
+    expect(lig(res, 'e1').demembrement).toBe('nue-propriété');
     expect(res.lignes.reduce((a, l) => a + l.montantCents, 0n)).toBe(10000000n);
   });
 
@@ -96,6 +96,57 @@ describe('conjoint avec descendant : 1/4 en pleine propriété par défaut', () 
     expect(lig(r, 'e1').montantCents).toBe(3750000n); // 3/8 chacun
     expect(lig(r, 'e2').montantCents).toBe(3750000n);
     expect(r.lignes.reduce((a, l) => a + l.montantCents, 0n)).toBe(10000000n);
+  });
+});
+
+describe('donation au dernier vivant (art. 1094-1)', () => {
+  const avec = (over: Partial<Partage>) => succ({
+    biens: [{ id: 'b', nom: 'Patrimoine', categorie: 'autre', valeurEuros: '100000', quotePart: { n: 1, d: 1 } }],
+    beneficiaires: [
+      { kind: 'personne', id: 'c', nom: 'Conjoint', part: { type: 'fraction', n: 1, d: 4 }, lien: 'conjoint' },
+      { kind: 'personne', id: 'e', nom: 'Enfant', part: { type: 'reste' }, lien: 'enfant' },
+    ],
+    ...over,
+  });
+
+  it('quotité disponible en PP : 1/2 avec un seul enfant', () => {
+    const r = calculer(avec({ optionConjoint: 'qdPP' }));
+    expect(lig(r, 'c').montantCents).toBe(5000000n); // 1/2
+    expect(lig(r, 'c').demembrement).toBeUndefined(); // pleine propriété
+    expect(lig(r, 'e').montantCents).toBe(5000000n);
+  });
+
+  it('1/4 PP + 3/4 usufruit (conjoint 75 ans → usufruit 30 %)', () => {
+    const r = calculer(avec({ optionConjoint: 'quartUsufruit', usufruitConjoint: 75 }));
+    expect(lig(r, 'c').montantCents).toBe(4750000n); // 1/4 + 3/4 × 30 % = 0,475
+    expect(lig(r, 'c').demembrement).toBe('¼ PP + ¾ usufruit');
+    expect(lig(r, 'e').montantCents).toBe(5250000n); // 0,525 en nue-propriété
+    expect(lig(r, 'e').demembrement).toBe('nue-propriété');
+    expect(r.lignes.reduce((a, l) => a + l.montantCents, 0n)).toBe(10000000n);
+  });
+
+  it('quotité disponible en PP : 1/3 avec deux enfants', () => {
+    const s2 = succ({
+      biens: [{ id: 'b', nom: 'P', categorie: 'autre', valeurEuros: '90000', quotePart: { n: 1, d: 1 } }],
+      beneficiaires: [
+        { kind: 'personne', id: 'c', nom: 'C', part: { type: 'reste' }, lien: 'conjoint' },
+        { kind: 'groupe', id: 'g', nom: 'Enf', part: { type: 'reste' }, membres: [
+          { kind: 'personne', id: 'e1', nom: 'E1', lien: 'enfant' },
+          { kind: 'personne', id: 'e2', nom: 'E2', lien: 'enfant' },
+        ] },
+      ],
+      optionConjoint: 'qdPP',
+    });
+    const r = calculer(s2);
+    expect(lig(r, 'c').montantCents).toBe(3000000n); // 1/3 de 90 000
+    expect(lig(r, 'e1').montantCents).toBe(3000000n); // 2/3 ÷ 2
+    expect(lig(r, 'e2').montantCents).toBe(3000000n);
+  });
+
+  it('le lien préserve l’option et l’âge', () => {
+    const d = decoder(encoder(avec({ optionConjoint: 'quartUsufruit', usufruitConjoint: 75 })))!;
+    expect(d.optionConjoint).toBe('quartUsufruit');
+    expect(d.usufruitConjoint).toBe(75);
   });
 });
 

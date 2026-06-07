@@ -3,7 +3,7 @@ import { toCents, splitByFractions, arrondi } from './money';
 import { analyserReserve, type ReserveInfo, type ReserveSlots } from './reserve';
 import { coeffUsufruit, coeffNuePropriete } from './usufruit';
 import { bienDemembrable } from './model';
-import type { Beneficiaire, Droit, Lien, Membre, Part, Partage } from './model';
+import type { Beneficiaire, Droit, Lien, Membre, OptionConjoint, Part, Partage } from './model';
 
 /** Une ligne du résultat (un bénéficiaire, ou le résidu non attribué). */
 export interface LigneResultat {
@@ -22,8 +22,8 @@ export interface LigneResultat {
   soulteCents: bigint;
   /** Si la personne vient par représentation : « qui » elle représente (chaîne de souches). */
   representeDe?: string;
-  /** Démembrement (option du conjoint) : 'usufruit' ou 'nue' propriété. */
-  demembrement?: 'usufruit' | 'nue';
+  /** Libellé du droit reçu via l'option du conjoint (ex. « usufruit », « nue-propriété »). */
+  demembrement?: string;
 }
 
 export interface Resultat {
@@ -47,7 +47,7 @@ interface Feuille {
   lien?: Lien;
   /** Chaîne des souches (sous-groupes) dont la personne descend, du haut vers le bas. */
   souches?: string[];
-  demembrement?: 'usufruit' | 'nue';
+  demembrement?: string;
 }
 
 /** Fraction explicite d'une part, ou null si c'est « le reste ». */
@@ -63,7 +63,7 @@ function partExplicite(part: Part): Fraction | null {
 }
 
 /** Développe un bénéficiaire en feuilles (personnes), les groupes étant répartis à parts égales. */
-function developper(node: Beneficiaire, fraction: Fraction, out: Feuille[], dem?: 'usufruit' | 'nue'): void {
+function developper(node: Beneficiaire, fraction: Fraction, out: Feuille[], dem?: string): void {
   if (node.kind === 'personne') {
     out.push({ id: node.id, nom: node.nom || 'Sans nom', fraction, lien: node.lien, demembrement: dem });
     return;
@@ -71,7 +71,7 @@ function developper(node: Beneficiaire, fraction: Fraction, out: Feuille[], dem?
   developperMembres(node.membres, fraction, out, [], dem);
 }
 
-function developperMembres(membres: Membre[], fraction: Fraction, out: Feuille[], souches: string[], dem?: 'usufruit' | 'nue'): void {
+function developperMembres(membres: Membre[], fraction: Fraction, out: Feuille[], souches: string[], dem?: string): void {
   const k = membres.length;
   if (k === 0) return; // groupe vide : sa part rejoindra le « non attribué »
   const chacun = fraction.div(Fraction.int(k));
@@ -211,28 +211,50 @@ export function calculer(s: Partage): Resultat {
     avertissements.push('La masse à partager est négative : le passif et les attributions dépassent l’actif.');
   }
 
-  // 4) Option du conjoint : s'il prend 100 % en usufruit, il reçoit U % de la masse,
-  //    les autres se partagent la nue-propriété (1 − U %) au prorata de leurs parts.
+  // 4) Droits du conjoint survivant en présence d'un descendant.
+  //    quartPP : 1/4 en pleine propriété (défaut légal, art. 757) ; usufruit : 100 % en
+  //    usufruit ; qdPP : quotité disponible en PP (½/⅓/¼ selon le nombre d'enfants,
+  //    donation au dernier vivant) ; quartUsufruit : 1/4 PP + 3/4 usufruit (donation).
+  //    Pour les options « pleine propriété », le conjoint prend une part fixe et les
+  //    enfants se partagent le reste ; pour les options avec usufruit, sa valeur est
+  //    prélevée en haut et les enfants se partagent la nue-propriété.
   const estConjoint = (b: Beneficiaire) => b.kind === 'personne' && b.lien === 'conjoint';
   const chercheEnfant = (n: Beneficiaire | Membre): boolean =>
     n.kind === 'personne' ? n.lien === 'enfant' : n.membres.some(chercheEnfant);
   const aConjoint = s.beneficiaires.some(estConjoint);
   const aEnfant = s.beneficiaires.some(chercheEnfant);
 
-  // Conjoint + descendant (art. 757) : deux options exclusives — 100 % en usufruit,
-  // ou (par défaut) 1/4 en pleine propriété, quelle que soit la part saisie.
-  const optionConjoint = s.contexte === 'succession' && aConjoint && aEnfant && s.usufruitConjoint != null;
-  const uCoeff = optionConjoint ? coeffUsufruit(s.usufruitConjoint as number) : Fraction.zero;
-  const partNue = Fraction.one.sub(uCoeff);
-  const conjointQuartPP = s.contexte === 'succession' && aConjoint && aEnfant && s.usufruitConjoint == null;
-  const partEffective = (b: Beneficiaire): Part =>
-    conjointQuartPP && estConjoint(b) ? { type: 'fraction', n: 1, d: 4 } : b.part;
+  const optionConjoint: OptionConjoint | null =
+    s.contexte === 'succession' && aConjoint && aEnfant
+      ? s.optionConjoint ?? (s.usufruitConjoint != null ? 'usufruit' : 'quartPP')
+      : null;
+  const uCoeff = coeffUsufruit(s.usufruitConjoint ?? 70);
+  const nbEnfants = construireSlots(s.beneficiaires, new Map()).enfants.length;
+  // Quotité disponible ordinaire (art. 913) selon le nombre d'enfants.
+  const quotiteDisp: Part =
+    nbEnfants <= 1 ? { type: 'fraction', n: 1, d: 2 } : nbEnfants === 2 ? { type: 'fraction', n: 1, d: 3 } : { type: 'fraction', n: 1, d: 4 };
 
-  // Résolution du « reste » (le conjoint en usufruit est traité à part).
+  const usufruitFamily = optionConjoint === 'usufruit' || optionConjoint === 'quartUsufruit';
+  const partConjointPP: Part | null =
+    optionConjoint === 'quartPP' ? { type: 'fraction', n: 1, d: 4 } : optionConjoint === 'qdPP' ? quotiteDisp : null;
+  const partEffective = (b: Beneficiaire): Part =>
+    partConjointPP && estConjoint(b) ? partConjointPP : b.part;
+
+  // Valeur (fraction de la masse) du conjoint dans les options avec usufruit.
+  const valeurConjoint =
+    optionConjoint === 'usufruit'
+      ? uCoeff
+      : optionConjoint === 'quartUsufruit'
+        ? Fraction.ratio(1, 4).add(Fraction.ratio(3, 4).mul(uCoeff))
+        : Fraction.zero;
+  const partAutres = Fraction.one.sub(valeurConjoint); // nue-propriété que se partagent les enfants
+  const tagConjoint = optionConjoint === 'usufruit' ? 'usufruit' : optionConjoint === 'quartUsufruit' ? '¼ PP + ¾ usufruit' : undefined;
+
+  // Résolution du « reste » (le conjoint usufruitier est traité à part).
   let sommeExplicite = Fraction.zero;
   let nbReste = 0;
   for (const b of s.beneficiaires) {
-    if (optionConjoint && estConjoint(b)) continue;
+    if (usufruitFamily && estConjoint(b)) continue;
     const f = partExplicite(partEffective(b));
     if (f === null) nbReste += 1;
     else sommeExplicite = sommeExplicite.add(f);
@@ -243,12 +265,12 @@ export function calculer(s: Partage): Resultat {
   // 5) Développement en feuilles (personnes).
   const feuilles: Feuille[] = [];
   for (const b of s.beneficiaires) {
-    if (optionConjoint && b.kind === 'personne' && b.lien === 'conjoint') {
-      feuilles.push({ id: b.id, nom: b.nom || 'Conjoint', fraction: uCoeff, lien: b.lien, demembrement: 'usufruit' });
+    if (usufruitFamily && b.kind === 'personne' && b.lien === 'conjoint') {
+      feuilles.push({ id: b.id, nom: b.nom || 'Conjoint', fraction: valeurConjoint, lien: b.lien, demembrement: tagConjoint });
       continue;
     }
-    const f = (partExplicite(partEffective(b)) ?? resteChacun).mul(optionConjoint ? partNue : Fraction.one);
-    developper(b, f, feuilles, optionConjoint ? 'nue' : undefined);
+    const f = (partExplicite(partEffective(b)) ?? resteChacun).mul(usufruitFamily ? partAutres : Fraction.one);
+    developper(b, f, feuilles, usufruitFamily ? 'nue-propriété' : undefined);
   }
   const sommeFeuilles = sum(feuilles.map((f) => f.fraction));
   const nonAttribue = Fraction.one.sub(sommeFeuilles);

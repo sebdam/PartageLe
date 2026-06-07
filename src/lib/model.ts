@@ -79,6 +79,14 @@ export function bienDemembrable(categorie: Categorie): boolean {
   return categorie === 'immobilier';
 }
 
+/**
+ * Droits du conjoint survivant en présence d'un descendant.
+ * Sans donation (art. 757) : « quartPP » (¼ en pleine propriété) ou « usufruit » (100 %).
+ * Avec donation au dernier vivant (art. 1094-1) : « qdPP » (quotité disponible en PP,
+ * ½/⅓/¼ selon le nombre d'enfants), « quartUsufruit » (¼ PP + ¾ usufruit) ou « usufruit ».
+ */
+export type OptionConjoint = 'quartPP' | 'usufruit' | 'qdPP' | 'quartUsufruit';
+
 /** Attribution d'une (fraction de) bien à un bénéficiaire, avant le partage du reste. */
 export interface Attribution {
   id: Id;
@@ -102,8 +110,10 @@ export interface Partage {
   passif: Passif[];
   beneficiaires: Beneficiaire[];
   attributions: Attribution[];
-  /** Option du conjoint survivant : s'il prend 100 % en usufruit, son âge (barème 669 CGI). */
+  /** Âge du conjoint (barème 669 CGI), pour les options comportant de l'usufruit. */
   usufruitConjoint?: number;
+  /** Droits retenus par le conjoint survivant (défaut : ¼ en pleine propriété). */
+  optionConjoint?: OptionConjoint;
 }
 
 // --- Identifiants & fabriques (utilisés par l'UI) ---------------------------

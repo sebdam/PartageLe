@@ -120,7 +120,7 @@
         <tr class:residu={l.estResidu}>
           <td>
             <span class="nom">{l.nom}</span>
-            {#if l.demembrement}<span class="represente">{l.demembrement === 'usufruit' ? 'usufruit' : 'nue-propriété'}</span>{/if}
+            {#if l.demembrement}<span class="represente">{l.demembrement}</span>{/if}
             {#if l.representeDe}<span class="represente">représente {l.representeDe}</span>{/if}
             {#if l.biensRecus.length > 0}
               <span class="biens">
