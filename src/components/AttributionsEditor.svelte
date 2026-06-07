@@ -77,21 +77,23 @@
 <div class="liste">
   {#each partage.attributions as att, i (att.id)}
     <div class="carte-ligne">
-      <div class="ligne wrap">
-        <select value={att.bienId} onchange={(e) => setBien(att, e.currentTarget.value)}>
-          {#each partage.biens as b}<option value={b.id}>{b.nom || '—'}</option>{/each}
-        </select>
-        <span class="fleche">{vocab.prepositionAttribution}</span>
-        <select bind:value={att.beneficiaireId}>
-          {#each cibles as c}<option value={c.id}>{c.nom}</option>{/each}
-        </select>
-        {#if (tailleCible.get(att.beneficiaireId) ?? 1) > 1}<span class="reste-tag">à parts égales</span>{/if}
-        {#if vocab.montreImputation}
-          <select bind:value={att.imputation}>
-            <option value="surPart">{vocab.labelSurPart}</option>
-            <option value="horsPart">{vocab.labelHorsPart}</option>
+      <div class="ligne attr-tete">
+        <div class="ligne wrap controles">
+          <select value={att.bienId} onchange={(e) => setBien(att, e.currentTarget.value)}>
+            {#each partage.biens as b}<option value={b.id}>{b.nom || '—'}</option>{/each}
           </select>
-        {/if}
+          <span class="fleche">{vocab.prepositionAttribution}</span>
+          <select bind:value={att.beneficiaireId}>
+            {#each cibles as c}<option value={c.id}>{c.nom}</option>{/each}
+          </select>
+          {#if (tailleCible.get(att.beneficiaireId) ?? 1) > 1}<span class="reste-tag">à parts égales</span>{/if}
+          {#if vocab.montreImputation}
+            <select bind:value={att.imputation}>
+              <option value="surPart">{vocab.labelSurPart}</option>
+              <option value="horsPart">{vocab.labelHorsPart}</option>
+            </select>
+          {/if}
+        </div>
         <button class="del" onclick={() => partage.attributions.splice(i, 1)} aria-label="Supprimer">×</button>
       </div>
 
