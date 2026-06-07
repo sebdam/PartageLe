@@ -1,6 +1,6 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import { CATEGORIES } from './model';
-import type { Attribution, Beneficiaire, Bien, Categorie, Droit, Lien, Membre, Part, Partage } from './model';
+import type { Attribution, Beneficiaire, Bien, Categorie, Droit, Lien, Membre, OptionConjoint, Part, Partage } from './model';
 
 /**
  * Partage par lien (zéro backend). L'état est sérialisé en TUPLES compacts (pas de
@@ -14,6 +14,7 @@ const VERSION = 1;
 const CATS = CATEGORIES.map((c) => c.value); // index ↔ catégorie
 const LIENS: Lien[] = ['enfant', 'conjoint', 'autre'];
 const DROITS_ORDRE: Droit[] = ['pleine', 'usufruit', 'nue'];
+const OPTIONS_CONJOINT: OptionConjoint[] = ['quartPP', 'usufruit', 'qdPP', 'quartUsufruit'];
 
 // --- Identifiants courts -----------------------------------------------------
 
@@ -112,7 +113,11 @@ function toTuple(p: Partage): unknown[] {
     p.beneficiaires.map(benefVers),
     p.attributions.map(attrVers),
   ];
-  if (p.usufruitConjoint != null) t.push(p.usufruitConjoint); // index 7, omis sinon
+  // Droits du conjoint : âge (index 7) et option (index 8) ; omis si rien n'est choisi.
+  if (p.optionConjoint != null || p.usufruitConjoint != null) {
+    t[7] = p.usufruitConjoint ?? null;
+    t[8] = p.optionConjoint != null ? OPTIONS_CONJOINT.indexOf(p.optionConjoint) : null;
+  }
   return t;
 }
 function fromTuple(t: any): Partage | null {
@@ -126,7 +131,8 @@ function fromTuple(t: any): Partage | null {
     beneficiaires: (t[5] ?? []).map(benefDe),
     attributions: (t[6] ?? []).map(attrDe),
   };
-  if (typeof t[7] === 'number') p.usufruitConjoint = t[7];
+  if (typeof t[7] === 'number') p.usufruitConjoint = t[7]; // âge (ancien format : option usufruit)
+  if (typeof t[8] === 'number') p.optionConjoint = OPTIONS_CONJOINT[t[8]] ?? undefined;
   return p;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
