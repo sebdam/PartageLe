@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Partage, Attribution, Droit, Beneficiaire, Membre } from '../lib/model';
   import type { Vocabulaire } from '../lib/contexte';
-  import { uid, listerCibles, DROITS } from '../lib/model';
+  import { uid, listerCibles, DROITS, bienDemembrable } from '../lib/model';
   import { pourcentUsufruit } from '../lib/usufruit';
   import { Fraction } from '../lib/fraction';
   import { formatCents, toCents } from '../lib/money';
@@ -39,6 +39,19 @@
     });
   }
 
+  // Le démembrement n'a de sens que pour l'immobilier.
+  function estImmobilier(att: Attribution): boolean {
+    const b = partage.biens.find((x) => x.id === att.bienId);
+    return b ? bienDemembrable(b.categorie) : false;
+  }
+  function setBien(att: Attribution, id: string) {
+    att.bienId = id;
+    if (!estImmobilier(att)) {
+      att.droit = 'pleine';
+      att.ageUsufruitier = undefined;
+    }
+  }
+
   function setDroit(att: Attribution, v: string) {
     att.droit = v as Droit;
     if (v !== 'pleine' && att.ageUsufruitier == null) att.ageUsufruitier = 70;
@@ -55,7 +68,7 @@
     const fr = att.fraction ?? { n: 1, d: 1 };
     const fracBien = fr.d ? Fraction.ratio(fr.n, fr.d) : Fraction.zero;
     const u = Fraction.ratio(pourcentUsufruit(att.ageUsufruitier ?? 0), 100);
-    const droit = att.droit ?? 'pleine';
+    const droit = estImmobilier(att) ? (att.droit ?? 'pleine') : 'pleine';
     const coeff = droit === 'usufruit' ? u : droit === 'nue' ? Fraction.one.sub(u) : Fraction.one;
     return formatCents(toCents(entrante.mul(fracBien).mul(coeff)));
   }
@@ -65,7 +78,7 @@
   {#each partage.attributions as att, i (att.id)}
     <div class="carte-ligne">
       <div class="ligne wrap">
-        <select bind:value={att.bienId}>
+        <select value={att.bienId} onchange={(e) => setBien(att, e.currentTarget.value)}>
           {#each partage.biens as b}<option value={b.id}>{b.nom || '—'}</option>{/each}
         </select>
         <span class="fleche">{vocab.prepositionAttribution}</span>
@@ -84,9 +97,11 @@
 
       {#if demembrable}
         <div class="ligne wrap demembrement">
-          <select class="lien" value={att.droit ?? 'pleine'} onchange={(e) => setDroit(att, e.currentTarget.value)} aria-label="Droit transmis">
-            {#each DROITS as d}<option value={d.value}>{d.label}</option>{/each}
-          </select>
+          {#if estImmobilier(att)}
+            <select class="lien" value={att.droit ?? 'pleine'} onchange={(e) => setDroit(att, e.currentTarget.value)} aria-label="Droit transmis">
+              {#each DROITS as d}<option value={d.value}>{d.label}</option>{/each}
+            </select>
+          {/if}
           <label class="champ">
             Part du bien
             <span class="frac">
@@ -95,7 +110,7 @@
               <input type="number" min="1" value={att.fraction?.d ?? 1} oninput={(e) => setFr(att, 'd', e.currentTarget.valueAsNumber)} />
             </span>
           </label>
-          {#if (att.droit ?? 'pleine') !== 'pleine'}
+          {#if estImmobilier(att) && (att.droit ?? 'pleine') !== 'pleine'}
             <label class="champ">
               Âge usufruitier
               <input class="num" type="number" min="0" max="120" bind:value={att.ageUsufruitier} placeholder="ex. 70" />

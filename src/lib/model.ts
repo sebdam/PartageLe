@@ -74,6 +74,11 @@ export const DROITS = [
   { value: 'nue', label: 'Nue-propriété' },
 ] as const;
 
+/** Le démembrement (usufruit / nue-propriété) ne concerne que les biens immobiliers. */
+export function bienDemembrable(categorie: Categorie): boolean {
+  return categorie === 'immobilier';
+}
+
 /** Attribution d'une (fraction de) bien à un bénéficiaire, avant le partage du reste. */
 export interface Attribution {
   id: Id;
