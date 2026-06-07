@@ -2,6 +2,7 @@ import { Fraction, sum } from './fraction';
 import { toCents, splitByFractions, arrondi } from './money';
 import { analyserReserve, type ReserveInfo, type ReserveSlots } from './reserve';
 import { coeffUsufruit, coeffNuePropriete } from './usufruit';
+import { bienDemembrable } from './model';
 import type { Beneficiaire, Droit, Lien, Membre, Part, Partage } from './model';
 
 /** Une ligne du résultat (un bénéficiaire, ou le résidu non attribué). */
@@ -153,6 +154,7 @@ export function calculer(s: Partage): Resultat {
     return { id: b.id, nom: b.nom || 'Bien sans nom', valeurEntranteCents: toCents(valeur.mul(qp)) };
   });
   const bienById = new Map(biens.map((b) => [b.id, b]));
+  const categorieById = new Map(s.biens.map((b) => [b.id, b.categorie]));
   const actifCents = biens.reduce((a, b) => a + b.valeurEntranteCents, 0n);
 
   // 2) Passif.
@@ -170,7 +172,8 @@ export function calculer(s: Partage): Resultat {
     if (!bien) continue;
     const cibles = feuillesDe.get(att.beneficiaireId) ?? [att.beneficiaireId];
     if (cibles.length === 0) continue; // groupe sans personne : rien à attribuer
-    const droit: Droit = att.droit ?? 'pleine';
+    // Le démembrement (usufruit / nue-propriété) ne vaut que pour l'immobilier ; sinon pleine propriété.
+    const droit: Droit = bienDemembrable(categorieById.get(att.bienId) ?? 'autre') ? (att.droit ?? 'pleine') : 'pleine';
     const fr = att.fraction ?? { n: 1, d: 1 };
     const fracBien = fr.d === 0 ? Fraction.zero : Fraction.ratio(fr.n, fr.d);
     const coeff =

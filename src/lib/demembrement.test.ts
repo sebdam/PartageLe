@@ -75,3 +75,24 @@ describe('option du conjoint (100 % usufruit)', () => {
     expect(decoder(encoder(s))!.usufruitConjoint).toBe(75);
   });
 });
+
+describe('démembrement réservé à l’immobilier', () => {
+  const base = (categorie: 'immobilier' | 'compte') => succ({
+    biens: [{ id: 'b', nom: 'Bien', categorie, valeurEuros: '100000', quotePart: { n: 1, d: 1 } }],
+    beneficiaires: [{ kind: 'personne', id: 'x', nom: 'X', part: { type: 'reste' } }],
+    attributions: [{ id: 'a', bienId: 'b', beneficiaireId: 'x', imputation: 'surPart', droit: 'usufruit', fraction: { n: 1, d: 1 }, ageUsufruitier: 65 }],
+  });
+
+  it('un bien non immobilier en « usufruit » est compté en pleine propriété', () => {
+    const r = calculer(base('compte'));
+    expect(r.lignes[0].biensRecus[0].valeurCents).toBe(10000000n); // pleine valeur, pas 40 %
+    expect(r.lignes[0].biensRecus[0].droit).toBe('pleine');
+    expect(r.avertissements.join(' ')).not.toContain('réparti'); // réparti à 100 %
+  });
+
+  it('un bien immobilier en usufruit reste démembré (barème 669)', () => {
+    const r = calculer(base('immobilier'));
+    expect(r.lignes[0].biensRecus[0].valeurCents).toBe(4000000n); // 40 % à 65 ans
+    expect(r.lignes[0].biensRecus[0].droit).toBe('usufruit');
+  });
+});
