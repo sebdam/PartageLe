@@ -76,6 +76,29 @@ describe('option du conjoint (100 % usufruit)', () => {
   });
 });
 
+describe('conjoint avec descendant : 1/4 en pleine propriété par défaut', () => {
+  // Part saisie « le reste » sur le conjoint : ignorée, il a 1/4 en PP (art. 757).
+  const s = succ({
+    biens: [{ id: 'b', nom: 'Patrimoine', categorie: 'autre', valeurEuros: '100000', quotePart: { n: 1, d: 1 } }],
+    beneficiaires: [
+      { kind: 'personne', id: 'c', nom: 'Conjoint', part: { type: 'reste' }, lien: 'conjoint' },
+      { kind: 'groupe', id: 'g', nom: 'Enfants', part: { type: 'reste' }, membres: [
+        { kind: 'personne', id: 'e1', nom: 'E1', lien: 'enfant' },
+        { kind: 'personne', id: 'e2', nom: 'E2', lien: 'enfant' },
+      ] },
+    ],
+  });
+
+  it('le conjoint reçoit 1/4 en PP, les enfants le reste (3/4)', () => {
+    const r = calculer(s);
+    expect(lig(r, 'c').montantCents).toBe(2500000n); // 1/4 de 100 000
+    expect(lig(r, 'c').demembrement).toBeUndefined(); // pleine propriété
+    expect(lig(r, 'e1').montantCents).toBe(3750000n); // 3/8 chacun
+    expect(lig(r, 'e2').montantCents).toBe(3750000n);
+    expect(r.lignes.reduce((a, l) => a + l.montantCents, 0n)).toBe(10000000n);
+  });
+});
+
 describe('démembrement réservé à l’immobilier', () => {
   const base = (categorie: 'immobilier' | 'compte') => succ({
     biens: [{ id: 'b', nom: 'Bien', categorie, valeurEuros: '100000', quotePart: { n: 1, d: 1 } }],

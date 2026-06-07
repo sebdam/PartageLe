@@ -214,17 +214,26 @@ export function calculer(s: Partage): Resultat {
   // 4) Option du conjoint : s'il prend 100 % en usufruit, il reçoit U % de la masse,
   //    les autres se partagent la nue-propriété (1 − U %) au prorata de leurs parts.
   const estConjoint = (b: Beneficiaire) => b.kind === 'personne' && b.lien === 'conjoint';
-  const optionConjoint =
-    s.contexte === 'succession' && s.usufruitConjoint != null && s.beneficiaires.some(estConjoint);
+  const chercheEnfant = (n: Beneficiaire | Membre): boolean =>
+    n.kind === 'personne' ? n.lien === 'enfant' : n.membres.some(chercheEnfant);
+  const aConjoint = s.beneficiaires.some(estConjoint);
+  const aEnfant = s.beneficiaires.some(chercheEnfant);
+
+  // Conjoint + descendant (art. 757) : deux options exclusives — 100 % en usufruit,
+  // ou (par défaut) 1/4 en pleine propriété, quelle que soit la part saisie.
+  const optionConjoint = s.contexte === 'succession' && aConjoint && aEnfant && s.usufruitConjoint != null;
   const uCoeff = optionConjoint ? coeffUsufruit(s.usufruitConjoint as number) : Fraction.zero;
   const partNue = Fraction.one.sub(uCoeff);
+  const conjointQuartPP = s.contexte === 'succession' && aConjoint && aEnfant && s.usufruitConjoint == null;
+  const partEffective = (b: Beneficiaire): Part =>
+    conjointQuartPP && estConjoint(b) ? { type: 'fraction', n: 1, d: 4 } : b.part;
 
   // Résolution du « reste » (le conjoint en usufruit est traité à part).
   let sommeExplicite = Fraction.zero;
   let nbReste = 0;
   for (const b of s.beneficiaires) {
     if (optionConjoint && estConjoint(b)) continue;
-    const f = partExplicite(b.part);
+    const f = partExplicite(partEffective(b));
     if (f === null) nbReste += 1;
     else sommeExplicite = sommeExplicite.add(f);
   }
@@ -238,7 +247,7 @@ export function calculer(s: Partage): Resultat {
       feuilles.push({ id: b.id, nom: b.nom || 'Conjoint', fraction: uCoeff, lien: b.lien, demembrement: 'usufruit' });
       continue;
     }
-    const f = (partExplicite(b.part) ?? resteChacun).mul(optionConjoint ? partNue : Fraction.one);
+    const f = (partExplicite(partEffective(b)) ?? resteChacun).mul(optionConjoint ? partNue : Fraction.one);
     developper(b, f, feuilles, optionConjoint ? 'nue' : undefined);
   }
   const sommeFeuilles = sum(feuilles.map((f) => f.fraction));

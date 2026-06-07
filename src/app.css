@@ -89,11 +89,8 @@ input:focus, select:focus { outline: 2px solid var(--primaire); outline-offset: 
 .liste { display: flex; flex-direction: column; gap: 0.6rem; }
 /* Espace entre une liste et le bouton d'ajout (ou la rangée de boutons) qui la suit */
 .liste + .add, .liste + .ligne, .liste + .aide { margin-top: 0.75rem; }
-/* Démembrement (usufruit) & option du conjoint */
+/* Démembrement (usufruit) */
 .demembrement { padding-top: 0.4rem; border-top: 1px dashed var(--bord); }
-.conjoint-usufruit { margin-top: 0.75rem; display: flex; gap: 0.6rem 1.25rem; align-items: center; flex-wrap: wrap; font-size: 0.9rem; }
-.conjoint-usufruit .case { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
-.conjoint-usufruit input[type='checkbox'] { width: auto; min-width: 0; }
 .ligne { display: flex; gap: 0.5rem; align-items: center; flex-wrap: nowrap; }
 .ligne.wrap { flex-wrap: wrap; }
 .grow { flex: 1 1 auto; }
