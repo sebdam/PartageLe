@@ -248,7 +248,6 @@ export function calculer(s: Partage): Resultat {
         ? Fraction.ratio(1, 4).add(Fraction.ratio(3, 4).mul(uCoeff))
         : Fraction.zero;
   const partAutres = Fraction.one.sub(valeurConjoint); // nue-propriété que se partagent les enfants
-  const tagConjoint = optionConjoint === 'usufruit' ? 'usufruit' : optionConjoint === 'quartUsufruit' ? '¼ PP + ¾ usufruit' : undefined;
 
   // Résolution du « reste » (le conjoint usufruitier est traité à part).
   let sommeExplicite = Fraction.zero;
@@ -266,7 +265,14 @@ export function calculer(s: Partage): Resultat {
   const feuilles: Feuille[] = [];
   for (const b of s.beneficiaires) {
     if (usufruitFamily && b.kind === 'personne' && b.lien === 'conjoint') {
-      feuilles.push({ id: b.id, nom: b.nom || 'Conjoint', fraction: valeurConjoint, lien: b.lien, demembrement: tagConjoint });
+      const nom = b.nom || 'Conjoint';
+      if (optionConjoint === 'quartUsufruit') {
+        // Pleine propriété et usufruit ne s'additionnent pas : une ligne par droit.
+        feuilles.push({ id: b.id, nom, fraction: Fraction.ratio(1, 4), lien: b.lien, demembrement: 'pleine propriété' });
+        feuilles.push({ id: `${b.id}#us`, nom, fraction: Fraction.ratio(3, 4).mul(uCoeff), lien: b.lien, demembrement: 'usufruit' });
+      } else {
+        feuilles.push({ id: b.id, nom, fraction: valeurConjoint, lien: b.lien, demembrement: 'usufruit' });
+      }
       continue;
     }
     const f = (partExplicite(partEffective(b)) ?? resteChacun).mul(usufruitFamily ? partAutres : Fraction.one);

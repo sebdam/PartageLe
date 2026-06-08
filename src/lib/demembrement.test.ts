@@ -116,10 +116,12 @@ describe('donation au dernier vivant (art. 1094-1)', () => {
     expect(lig(r, 'e').montantCents).toBe(5000000n);
   });
 
-  it('1/4 PP + 3/4 usufruit (conjoint 75 ans → usufruit 30 %)', () => {
+  it('1/4 PP + 3/4 usufruit : deux lignes (conjoint 75 ans → usufruit 30 %)', () => {
     const r = calculer(avec({ optionConjoint: 'quartUsufruit', usufruitConjoint: 75 }));
-    expect(lig(r, 'c').montantCents).toBe(4750000n); // 1/4 + 3/4 × 30 % = 0,475
-    expect(lig(r, 'c').demembrement).toBe('¼ PP + ¾ usufruit');
+    expect(lig(r, 'c').montantCents).toBe(2500000n); // 1/4 en pleine propriété
+    expect(lig(r, 'c').demembrement).toBe('pleine propriété');
+    expect(lig(r, 'c#us').montantCents).toBe(2250000n); // 3/4 × 30 % en usufruit
+    expect(lig(r, 'c#us').demembrement).toBe('usufruit');
     expect(lig(r, 'e').montantCents).toBe(5250000n); // 0,525 en nue-propriété
     expect(lig(r, 'e').demembrement).toBe('nue-propriété');
     expect(r.lignes.reduce((a, l) => a + l.montantCents, 0n)).toBe(10000000n);

@@ -113,7 +113,7 @@
   <div class="table-scroll">
   <table class="parts">
     <thead>
-      <tr><th>{vocab.labelBeneficiaire}</th><th>Part</th><th class="r">Montant</th><th class="r">{vocab.labelSoulte}</th></tr>
+      <tr><th>{vocab.labelBeneficiaire}</th><th>Part</th><th class="r">{vocab.labelQuotePartDue}</th><th class="r">{vocab.labelQuotePartVersee}</th><th class="r">{vocab.labelSoulte}</th></tr>
     </thead>
     <tbody>
       {#each resultat.lignes as l (l.id)}
@@ -132,6 +132,7 @@
           </td>
           <td><span class="frac-aff">{l.fraction.toString()}</span><span class="pct">{formatPct(l.pourcent)}</span></td>
           <td class="r">{formatCents(l.montantCents)}</td>
+          <td class="r versee">{l.estResidu ? '' : formatCents(l.montantCents + l.soulteCents)}</td>
           <td class="r soulte" class:verse={aRegler(l.soulteCents) > 0n} class:recoit={aRegler(l.soulteCents) < 0n}>
             {l.estResidu ? '' : soldeTexte(l.soulteCents)}
           </td>
