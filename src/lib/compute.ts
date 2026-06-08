@@ -20,6 +20,8 @@ export interface LigneResultat {
   biensRecus: { nom: string; valeurCents: bigint; imputation: 'surPart' | 'horsPart'; droit: Droit }[];
   /** Soulte en centimes : > 0 ⇒ la personne verse, < 0 ⇒ elle reçoit. */
   soulteCents: bigint;
+  /** Quote-part versée : ce que la personne reçoit réellement (part due + biens reçus en excédent + préciput). */
+  verseeCents: bigint;
   /** Si la personne vient par représentation : « qui » elle représente (chaîne de souches). */
   representeDe?: string;
   /** Libellé du droit reçu via l'option du conjoint (ex. « usufruit », « nue-propriété »). */
@@ -165,6 +167,7 @@ export function calculer(s: Partage): Resultat {
   const feuillesDe = feuillesParId(s.beneficiaires);
   let horsPartCents = 0n;
   const surPartParPersonne = new Map<string, bigint>();
+  const horsPartParPersonne = new Map<string, bigint>();
   const biensRecus = new Map<string, LigneResultat['biensRecus']>();
   const repartiParBien = new Map<string, Fraction>();
   for (const att of s.attributions) {
@@ -196,6 +199,7 @@ export function calculer(s: Partage): Resultat {
       liste.push({ nom: bien.nom, valeurCents: v, imputation: att.imputation, droit });
       biensRecus.set(pid, liste);
       if (att.imputation === 'surPart') surPartParPersonne.set(pid, (surPartParPersonne.get(pid) ?? 0n) + v);
+      else horsPartParPersonne.set(pid, (horsPartParPersonne.get(pid) ?? 0n) + v);
     });
   }
   // Garde-fou : un bien attribué doit l'être en totalité (en valeur).
@@ -302,10 +306,30 @@ export function calculer(s: Partage): Resultat {
   const fractions = toutes.map((f) => f.fraction);
   const montants = masseCents >= 0n ? splitByFractions(masseCents, fractions) : fractions.map(() => 0n);
 
+  // Soulte = partage à somme nulle : celui qui reçoit en nature au-delà de sa part
+  // verse l'excédent ; les autres récupèrent leur part de cet excédent, au prorata de
+  // leur manque (les biens non attribués étant supposés répartis pour combler les parts).
+  const surPartDe = (id: string) => surPartParPersonne.get(id) ?? 0n;
+  const excedents = montants.map((m, i) => {
+    const e = surPartDe(toutes[i].id) - m;
+    return toutes[i].id === '__residu__' || e < 0n ? 0n : e;
+  });
+  const manques = montants.map((m, i) => {
+    const e = m - surPartDe(toutes[i].id);
+    return toutes[i].id === '__residu__' || e < 0n ? 0n : e;
+  });
+  const totalExcedent = excedents.reduce((a, b) => a + b, 0n);
+  const totalManque = manques.reduce((a, b) => a + b, 0n);
+  const recus =
+    totalManque > 0n
+      ? splitByFractions(totalExcedent, manques.map((m) => Fraction.ratio(Number(m), Number(totalManque))))
+      : manques.map(() => 0n);
+
   const lignes: LigneResultat[] = toutes.map((f, i) => {
     const estResidu = f.id === '__residu__';
     const montant = montants[i];
-    const surPart = surPartParPersonne.get(f.id) ?? 0n;
+    const surPart = surPartDe(f.id);
+    const horsPart = horsPartParPersonne.get(f.id) ?? 0n;
     return {
       id: f.id,
       nom: f.nom,
@@ -314,8 +338,10 @@ export function calculer(s: Partage): Resultat {
       pourcent: f.fraction.toNumber() * 100,
       montantCents: montant,
       biensRecus: biensRecus.get(f.id) ?? [],
-      // Soulte = ce qu'on a reçu en nature (sur part) − sa part théorique.
-      soulteCents: estResidu ? 0n : surPart - montant,
+      // > 0 ⇒ verse l'excédent reçu ; < 0 ⇒ reçoit sa part de l'excédent.
+      soulteCents: estResidu ? 0n : excedents[i] > 0n ? excedents[i] : -recus[i],
+      // Versée : ce qu'on reçoit (succession) ou ce qu'on a payé (note).
+      verseeCents: estResidu ? montant : s.contexte === 'note' ? surPart : montant + excedents[i] + horsPart,
       representeDe: f.souches && f.souches.length > 0 ? f.souches.join(' › ') : undefined,
       demembrement: f.demembrement,
     };
