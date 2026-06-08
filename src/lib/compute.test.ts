@@ -38,10 +38,44 @@ describe('calculer — exemple de la maison', () => {
     expect(total).toBe(res.masseCents);
   });
 
-  it('les soultes se compensent (versées = reçues + trésorerie)', () => {
+  it('les soultes se compensent (partage à somme nulle)', () => {
     const totalSoulte = res.lignes.reduce((a, l) => a + l.soulteCents, 0n);
-    // Σ soulte = (sur part en nature) − masse = 2 400 000 − 24 000 000.
-    expect(totalSoulte).toBe(-21600000n);
+    expect(totalSoulte).toBe(0n);
+  });
+});
+
+describe('calculer — soulte à somme nulle', () => {
+  // Masse 100 000 répartie entre 4 enfants (25 000 chacun). A reçoit la maison (40 000).
+  const s: Partage = {
+    contexte: 'succession', titre: 'T', devise: 'EUR', passif: [],
+    biens: [
+      { id: 'maison', nom: 'Maison', categorie: 'immobilier', valeurEuros: '40000', quotePart: { n: 1, d: 1 } },
+      { id: 'compte', nom: 'Compte', categorie: 'compte', valeurEuros: '60000', quotePart: { n: 1, d: 1 } },
+    ],
+    beneficiaires: [
+      { kind: 'groupe', id: 'g', nom: 'Enfants', part: { type: 'reste' }, membres: [
+        { kind: 'personne', id: 'a', nom: 'A', lien: 'enfant' },
+        { kind: 'personne', id: 'b', nom: 'B', lien: 'enfant' },
+        { kind: 'personne', id: 'c', nom: 'C', lien: 'enfant' },
+        { kind: 'personne', id: 'd', nom: 'D', lien: 'enfant' },
+      ] },
+    ],
+    attributions: [{ id: 'at', bienId: 'maison', beneficiaireId: 'a', imputation: 'surPart', droit: 'pleine', fraction: { n: 1, d: 1 } }],
+  };
+  const r = calculer(s);
+
+  it('celui qui dépasse sa part verse l’excédent, et touche le bien', () => {
+    expect(ligne(r, 'a').soulteCents).toBe(1500000n); // verse 40 000 − 25 000
+    expect(ligne(r, 'a').verseeCents).toBe(4000000n); // touche la maison (40 000)
+  });
+  it('les autres récupèrent leur part de l’excédent (prorata) et touchent leur part', () => {
+    for (const id of ['b', 'c', 'd']) {
+      expect(ligne(r, id).soulteCents).toBe(-500000n); // reçoit 15 000 ÷ 3
+      expect(ligne(r, id).verseeCents).toBe(2500000n); // touche sa part (25 000)
+    }
+  });
+  it('la somme des soultes est nulle', () => {
+    expect(r.lignes.reduce((a, l) => a + l.soulteCents, 0n)).toBe(0n);
   });
 });
 

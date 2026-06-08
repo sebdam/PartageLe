@@ -50,6 +50,9 @@ export interface Vocabulaire {
   labelActif: string;
   labelMasse: string;
   labelSoulte: string;
+  /** Colonnes de la table de résultat. */
+  labelQuotePartDue: string;
+  labelQuotePartVersee: string;
   labelBeneficiaire: string;
   recapTitre: string;
   /** Verbe quand la personne doit décaisser (solde positif après normalisation). */
@@ -98,6 +101,8 @@ const succession: Vocabulaire = {
   labelActif: 'Actif',
   labelMasse: 'Masse à partager',
   labelSoulte: 'Soulte',
+  labelQuotePartDue: 'Quote-part due',
+  labelQuotePartVersee: 'Quote-part versée',
   labelBeneficiaire: 'Bénéficiaire',
   recapTitre: 'Soultes à verser',
   verbePaie: 'verse',
@@ -142,6 +147,8 @@ const note: Vocabulaire = {
   labelActif: 'Total',
   labelMasse: 'Total à partager',
   labelSoulte: 'Solde',
+  labelQuotePartDue: 'Part due',
+  labelQuotePartVersee: 'A payé',
   labelBeneficiaire: 'Participant',
   recapTitre: 'Remboursements',
   verbePaie: 'doit',
